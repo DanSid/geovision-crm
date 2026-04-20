@@ -1,0 +1,3 @@
+export const TOGGLE_COLLAPSED_NAV = 'TOGGLE_COLLAPSED_NAV';
+export const DATA_HOVER = 'DATA_HOVER';
+export const TOGGLE_TOP_NAV = 'TOGGLE_TOP_NAV';

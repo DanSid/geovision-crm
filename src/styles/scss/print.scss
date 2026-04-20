@@ -1,0 +1,249 @@
+// ============================================================
+// INVOICE PRINT STYLES
+// ============================================================
+
+@media print {
+
+    // ---- 1. Page setup ----
+    @page {
+        size: A4 portrait;
+        margin: 10mm 12mm;
+    }
+
+    // ---- 2. Force ALL text black, ALL backgrounds white ----
+    // Use body-level cascade + every element selector so nothing slips through
+    html, body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        font-size: 11pt !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    // Every single element: black text, white bg
+    * {
+        color: #000000 !important;
+        background-color: transparent !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    // ---- 3. Hide ALL app chrome ----
+    .hk-navbar,
+    nav.hk-navbar,
+    header.hk-navbar,
+    .hk-sidebar-wrapper,
+    .hk-menu,
+    .hk-vertical-nav,
+    [class*="hk-sidebar"],
+    .invoiceapp-sidebar,
+    .invoiceapp-fixednav,
+    header.invoice-header,
+    .hk-footer,
+    footer,
+    .no-print,
+    .simplebar-track,
+    .simplebar-placeholder,
+    .simplebar-scrollbar {
+        display: none !important;
+    }
+
+    // ---- 4. Strip layout wrappers down to plain blocks ----
+    .hk-wrapper,
+    .hk-pg-wrapper,
+    .hk-pg-body,
+    .invoiceapp-wrap,
+    .invoiceapp-content,
+    .invoiceapp-detail-wrap {
+        display: block !important;
+        width: 100% !important;
+        min-height: unset !important;
+        max-height: none !important;
+        height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+        overflow: visible !important;
+        position: static !important;
+        transform: none !important;
+        left: 0 !important;
+    }
+
+    // Remove the left gap left behind by the hidden sidebar
+    .invoiceapp-content {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
+
+    // ---- 5. SimpleBar: make it invisible so content flows ----
+    .invoice-body,
+    .nicescroll-bar,
+    .simplebar-wrapper,
+    .simplebar-mask,
+    .simplebar-offset,
+    .simplebar-content-wrapper,
+    .simplebar-content {
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+        width: 100% !important;
+        position: static !important;
+    }
+
+    // ---- 6. Invoice content wrapper ----
+    .template-invoice-wrap,
+    .create-invoice-wrap {
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+    }
+
+    // ---- 7. Bootstrap container full-width ----
+    .container,
+    .container-fluid,
+    .container-xxl,
+    .container-xl,
+    .container-lg,
+    .container-md,
+    .container-sm {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    // ---- 8. Tables: full width, black borders, all columns visible ----
+    table {
+        width: 100% !important;
+        max-width: 100% !important;
+        table-layout: fixed !important;
+        border-collapse: collapse !important;
+        page-break-inside: auto !important;
+        background: #ffffff !important;
+    }
+
+    th, td {
+        color: #000000 !important;
+        background-color: #ffffff !important;
+        border: 1px solid #888888 !important;
+        padding: 5px 7px !important;
+        font-size: 9pt !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        white-space: normal !important;
+    }
+
+    tr {
+        page-break-inside: avoid !important;
+        page-break-after: auto !important;
+    }
+
+    // ---- 9. Teal table header — keep colour, force white text ----
+    thead.thead-primary,
+    .thead-primary,
+    thead.thead-primary tr,
+    thead.thead-primary tr th {
+        background-color: #1ba29b !important;
+        background: #1ba29b !important;
+        color: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    // ---- 10. Column widths for the invoice items table ----
+    // Item col wide, rest narrow so all 5 columns fit on A4
+    .table-wrap table thead th:first-child,
+    .table-wrap table tbody td:first-child { width: 45% !important; }
+
+    .table-wrap table thead th:nth-child(2),
+    .table-wrap table tbody td:nth-child(2) { width: 10% !important; text-align: right !important; }
+
+    .table-wrap table thead th:nth-child(3),
+    .table-wrap table tbody td:nth-child(3) { width: 15% !important; text-align: right !important; }
+
+    .table-wrap table thead th:nth-child(4),
+    .table-wrap table tbody td:nth-child(4) { width: 12% !important; text-align: right !important; }
+
+    .table-wrap table thead th:nth-child(5),
+    .table-wrap table tbody td:nth-child(5) { width: 18% !important; text-align: right !important; }
+
+    // ---- 11. Subtotal summary table ----
+    .subtotal-table td {
+        font-size: 9.5pt !important;
+        color: #000000 !important;
+        background-color: #ffffff !important;
+    }
+
+    // Total row — make it stand out with a light grey background
+    .subtotal-table tr:last-child td {
+        font-weight: bold !important;
+        background-color: #f0f0f0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    // ---- 12. Text colours — every variant forced to black ----
+    h1, h2, h3, h4, h5, h6,
+    p, span, div, li, a, label,
+    .text-dark, .text-muted, .text-primary,
+    .text-secondary, .text-success, .text-danger,
+    .text-warning, .text-info, .text-light, .text-white,
+    .fw-semibold, .fw-medium, .fw-bold {
+        color: #000000 !important;
+    }
+
+    // Invoice title "Invoice"
+    h2 { font-size: 22pt !important; }
+
+    // Address blocks
+    .address-wrap p,
+    .address-wrap h6,
+    .Billto-wrap p,
+    .Billto-wrap h6 {
+        color: #000000 !important;
+        margin-bottom: 2px !important;
+        font-size: 9.5pt !important;
+    }
+
+    // Meta labels (Invoice No, Date, etc.)
+    .text-md-end,
+    .text-end {
+        color: #000000 !important;
+    }
+
+    // ---- 13. Separator lines ----
+    .separator,
+    .separator-light {
+        border: none !important;
+        border-top: 1px solid #cccccc !important;
+        margin: 8px 0 !important;
+        background: transparent !important;
+    }
+
+    // ---- 14. Images ----
+    img {
+        max-width: 100px !important;
+        height: auto !important;
+        display: block !important;
+    }
+
+    // ---- 15. Bootstrap rows/cols stay as flex ----
+    .row {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        margin: 0 !important;
+    }
+
+    // ---- 16. Prevent page break in the middle of key sections ----
+    .template-invoice-wrap > .row,
+    .table-wrap,
+    .address-wrap,
+    .Billto-wrap {
+        page-break-inside: avoid !important;
+    }
+}
