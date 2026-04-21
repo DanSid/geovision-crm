@@ -8,8 +8,8 @@ import logo from '../../../../assets/img/geovision-logo.svg';
 const Login = ({ loginUser, clearAuthError, error, isAuthenticated }) => {
   const history = useHistory();
   const location = useLocation();
-  const [email, setEmail] = useState('admin@geovision.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [validated, setValidated] = useState(false);
 
   const from = location.state?.from?.pathname || '/dashboard';
@@ -35,9 +35,8 @@ const Login = ({ loginUser, clearAuthError, error, isAuthenticated }) => {
             <h1 className="display-6 fw-bold mb-3">Welcome back to your CRM workspace</h1>
             <p className="lead opacity-75 mb-4">Sign in with your existing account to manage customers, opportunities, tasks, and calendar updates in one place.</p>
             <div className="rounded-4 p-4" style={{ background: 'rgba(255,255,255,0.08)' }}>
-              <div className="fw-semibold mb-2">Default admin login</div>
-              <div className="opacity-75">Email: admin@geovision.com</div>
-              <div className="opacity-75">Password: admin123</div>
+              <div className="fw-semibold mb-2">Geovision CRM</div>
+              <div className="opacity-75">Manage customers, opportunities, tasks and more — all in one place.</div>
             </div>
           </div>
         </Col>
@@ -53,7 +52,7 @@ const Login = ({ loginUser, clearAuthError, error, isAuthenticated }) => {
               <Form noValidate validated={validated} onSubmit={handleSubmit}>
                 <Form.Group className="mb-3">
                   <Form.Label>Email or username</Form.Label>
-                  <Form.Control value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="admin@geovision.com" />
+                  <Form.Control value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="Enter your email or username" />
                 </Form.Group>
                 <Form.Group className="mb-3">
                   <Form.Label>Password</Form.Label>
