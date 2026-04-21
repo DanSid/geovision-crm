@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Button, Table } from 'react-bootstrap';
-import { Paperclip, Trash2, Upload } from 'react-feather';
+import { Eye, Paperclip, Trash2, Upload } from 'react-feather';
 import { connect } from 'react-redux';
 import { addDocument, deleteDocument } from '../../../../redux/action/Crm';
 
@@ -16,6 +16,16 @@ const fmtDate = (iso) => {
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+const typeIcon = (type) => {
+    if (!type) return '📄';
+    if (type.includes('image')) return '🖼️';
+    if (type.includes('pdf')) return '📕';
+    if (type.includes('word') || type.includes('document')) return '📝';
+    if (type.includes('sheet') || type.includes('excel')) return '📊';
+    if (type.includes('zip') || type.includes('compressed')) return '🗜️';
+    return '📄';
+};
+
 const DocumentsTab = ({ entityType, entityId, documents, addDocument, deleteDocument }) => {
     const fileRef = useRef(null);
 
@@ -26,25 +36,48 @@ const DocumentsTab = ({ entityType, entityId, documents, addDocument, deleteDocu
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files || []);
         files.forEach(file => {
-            addDocument({
-                entityType,
-                entityId,
-                name: file.name,
-                type: file.type || 'unknown',
-                size: file.size,
-            });
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                addDocument({
+                    entityType,
+                    entityId,
+                    name: file.name,
+                    type: file.type || 'unknown',
+                    size: file.size,
+                    dataUrl: ev.target.result, // store base64 so we can view it
+                });
+            };
+            reader.readAsDataURL(file);
         });
         e.target.value = '';
     };
 
-    const typeIcon = (type) => {
-        if (!type) return '📄';
-        if (type.includes('image')) return '🖼️';
-        if (type.includes('pdf')) return '📕';
-        if (type.includes('word') || type.includes('document')) return '📝';
-        if (type.includes('sheet') || type.includes('excel')) return '📊';
-        if (type.includes('zip') || type.includes('compressed')) return '🗜️';
-        return '📄';
+    // Open file in new tab using the stored base64 data URL
+    const handleView = (doc) => {
+        if (!doc.dataUrl) {
+            alert('This document was uploaded before view support was added. Please re-upload the file to enable viewing.');
+            return;
+        }
+        // For PDFs and images, open directly in a new tab
+        const win = window.open('', '_blank');
+        if (doc.type && (doc.type.includes('pdf') || doc.type.includes('image'))) {
+            win.document.write(`
+                <html>
+                  <head><title>${doc.name}</title></head>
+                  <body style="margin:0;background:#1a1a1a;">
+                    <iframe src="${doc.dataUrl}" style="width:100vw;height:100vh;border:none;"></iframe>
+                  </body>
+                </html>
+            `);
+        } else {
+            // For other types, trigger a download
+            const a = win.document.createElement('a');
+            a.href = doc.dataUrl;
+            a.download = doc.name;
+            win.document.body.appendChild(a);
+            a.click();
+            win.close();
+        }
     };
 
     return (
@@ -71,8 +104,7 @@ const DocumentsTab = ({ entityType, entityId, documents, addDocument, deleteDocu
                 >
                     <Paperclip size={32} className="mb-2 text-muted" />
                     <p className="mb-1">No documents uploaded yet.</p>
-                    <p className="fs-7">Click or drag and drop files here</p>
-                    <small className="text-muted">(Metadata only — no actual upload to server)</small>
+                    <p className="fs-7">Click here to upload files</p>
                 </div>
             ) : (
                 <div className="table-responsive">
@@ -83,7 +115,7 @@ const DocumentsTab = ({ entityType, entityId, documents, addDocument, deleteDocu
                                 <th>Type</th>
                                 <th>Size</th>
                                 <th>Uploaded</th>
-                                <th></th>
+                                <th className="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -96,11 +128,27 @@ const DocumentsTab = ({ entityType, entityId, documents, addDocument, deleteDocu
                                     <td className="fs-7 text-muted">{d.type || '—'}</td>
                                     <td className="fs-7">{fmt(d.size)}</td>
                                     <td className="fs-7">{fmtDate(d.uploadedAt)}</td>
-                                    <td>
-                                        <Button variant="flush-dark" size="sm" className="btn-icon btn-rounded p-1"
-                                            onClick={() => deleteDocument(d.id)}>
-                                            <Trash2 size={13} />
-                                        </Button>
+                                    <td className="text-center">
+                                        <div className="d-flex align-items-center justify-content-center gap-1">
+                                            <Button
+                                                variant="soft-info"
+                                                size="sm"
+                                                className="btn-icon btn-rounded p-1"
+                                                title="View document"
+                                                onClick={() => handleView(d)}
+                                            >
+                                                <Eye size={13} />
+                                            </Button>
+                                            <Button
+                                                variant="flush-dark"
+                                                size="sm"
+                                                className="btn-icon btn-rounded p-1"
+                                                title="Delete document"
+                                                onClick={() => deleteDocument(d.id)}
+                                            >
+                                                <Trash2 size={13} />
+                                            </Button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
