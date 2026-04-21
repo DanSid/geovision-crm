@@ -11,6 +11,7 @@ import { nanoid } from 'nanoid';
 import HkInlineEdit from '../../../components/@hk-editable-component/HkInlineEdit';
 import HkDropZone from '../../../components/@hk-drop-zone/HkDropZone';
 import { addInvoice, updateInvoice, updateOpportunity } from '../../../redux/action/Crm';
+import { getContactName } from '../../../utils/contactWorkspace';
 
 const DEFAULT_TC = [
     { id: 0, conditon: 'Please pay within 15 days from the date of invoice, overdue interest @ 14% will be charged on delayed payments.' },
@@ -29,13 +30,14 @@ const Body = ({ invoices, contacts, opportunities, addInvoice, updateInvoice, up
     // Opportunities that belong to the selected contact
     const contactOpportunities = (opportunities || []).filter(op => {
         if (!selectedContactId) return false;
-        const contact = (contacts || []).find(c => String(c.id) === selectedContactId);
+        const contact = (contacts || []).find(c => String(c.id) === selectedContactId || String(c._id) === selectedContactId);
         if (!contact) return false;
-        // Match by contactName (stored on opportunity) or contact id
+        const fullName = getContactName(contact);
+        // Match by contactId (stored on opportunity) or contactName string
         return (
-            String(op.contactId) === selectedContactId ||
-            (op.contactName && contact.name &&
-             op.contactName.toLowerCase().trim() === contact.name.toLowerCase().trim())
+            String(op.contactId) === String(contact.id || contact._id) ||
+            (op.contactName && fullName &&
+             op.contactName.toLowerCase().trim() === fullName.toLowerCase().trim())
         );
     });
 
@@ -61,11 +63,11 @@ const Body = ({ invoices, contacts, opportunities, addInvoice, updateInvoice, up
     // ── Auto-populate from contact ────────────────────────────────────────────
     useEffect(() => {
         if (!selectedContactId) return;
-        const contact = (contacts || []).find(c => String(c.id) === selectedContactId);
+        const contact = (contacts || []).find(c => String(c.id) === selectedContactId || String(c._id) === selectedContactId);
         if (!contact) return;
-        setBilledToName(contact.name || '');
+        setBilledToName(getContactName(contact));
         setBilledToEmail(contact.email || '');
-        setCustomerNo(contact.phone || contact.mobile || '');
+        setCustomerNo(contact.phone || contact.workPhone || '');
         // Reset opportunity if contact changes
         setSelectedOpportunityId('');
         setItemList([]);
@@ -172,7 +174,7 @@ const Body = ({ invoices, contacts, opportunities, addInvoice, updateInvoice, up
 
         // ── Update linked opportunity stage to "Invoice Issued" ──────────────
         if (selectedOpportunityId) {
-            const opp = (opportunities || []).find(o => String(o.id) === selectedOpportunityId);
+            const opp = (opportunities || []).find(o => String(o.id || o._id) === selectedOpportunityId);
             if (opp) {
                 updateOpportunity({ ...opp, stage: 'Invoice Issued' });
             }
@@ -187,8 +189,8 @@ const Body = ({ invoices, contacts, opportunities, addInvoice, updateInvoice, up
     const handlePrint = () => window.print();
 
     // ── Selected contact/opp labels ───────────────────────────────────────────
-    const selectedContact = (contacts || []).find(c => String(c.id) === selectedContactId);
-    const selectedOpp = (opportunities || []).find(o => String(o.id) === selectedOpportunityId);
+    const selectedContact = (contacts || []).find(c => String(c.id || c._id) === selectedContactId);
+    const selectedOpp = (opportunities || []).find(o => String(o.id || o._id) === selectedOpportunityId);
 
     return (
         <>
@@ -213,11 +215,11 @@ const Body = ({ invoices, contacts, opportunities, addInvoice, updateInvoice, up
                                             >
                                                 <option value="">— Choose a contact —</option>
                                                 {(contacts || [])
-                                                    .filter(c => c.name)
-                                                    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                                                    .filter(c => getContactName(c))
+                                                    .sort((a, b) => getContactName(a).localeCompare(getContactName(b)))
                                                     .map(c => (
-                                                        <option key={c.id} value={c.id}>
-                                                            {c.name}{c.company ? ` — ${c.company}` : ''}
+                                                        <option key={c.id || c._id} value={c.id || c._id}>
+                                                            {getContactName(c)}{c.company ? ` — ${c.company}` : ''}
                                                         </option>
                                                     ))}
                                             </Form.Select>
