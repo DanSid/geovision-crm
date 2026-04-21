@@ -195,6 +195,7 @@ const EquipmentPage = ({
                                                     size="sm"
                                                     variant="soft-primary"
                                                     className="me-1 btn-icon btn-rounded"
+                                                    title="Edit equipment"
                                                     onClick={() => openEdit(item)}
                                                 >
                                                     <Edit2 size={14} />
@@ -203,6 +204,7 @@ const EquipmentPage = ({
                                                     size="sm"
                                                     variant="soft-danger"
                                                     className="btn-icon btn-rounded"
+                                                    title="Delete equipment"
                                                     onClick={() => handleDelete(item.id)}
                                                 >
                                                     <Trash2 size={14} />

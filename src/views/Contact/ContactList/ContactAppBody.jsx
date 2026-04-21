@@ -339,13 +339,13 @@ const ContactAppBody = ({
                                         </td>
                                         <td>{contact.createdAt ? new Date(contact.createdAt).toLocaleDateString() : '-'}</td>
                                         <td>
-                                            <Button size="sm" variant="soft-info" className="me-1 btn-icon btn-rounded" onClick={() => history.push(`/apps/contacts/detail/${contact.id}`)}>
+                                            <Button size="sm" variant="soft-info" className="me-1 btn-icon btn-rounded" title="View contact" onClick={() => history.push(`/apps/contacts/detail/${contact.id}`)}>
                                                 <i className="ri-eye-line" />
                                             </Button>
-                                            <Button size="sm" variant="soft-primary" className="me-1 btn-icon btn-rounded" onClick={() => openEdit(contact)}>
+                                            <Button size="sm" variant="soft-primary" className="me-1 btn-icon btn-rounded" title="Edit contact" onClick={() => openEdit(contact)}>
                                                 <i className="ri-edit-line" />
                                             </Button>
-                                            <Button size="sm" variant="soft-danger" className="btn-icon btn-rounded" onClick={() => deleteContact(contact.id)}>
+                                            <Button size="sm" variant="soft-danger" className="btn-icon btn-rounded" title="Delete contact" onClick={() => deleteContact(contact.id)}>
                                                 <i className="ri-delete-bin-line" />
                                             </Button>
                                         </td>
@@ -386,7 +386,7 @@ const ContactAppBody = ({
                             <Form.Control
                                 as="textarea"
                                 rows={3}
-                                placeholder="Add Biography"
+                                placeholder="Brief Narrative about the Client"
                                 value={form.biography}
                                 onChange={e => handleChange('biography', e.target.value)}
                             />

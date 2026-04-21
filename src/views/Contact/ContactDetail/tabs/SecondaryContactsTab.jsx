@@ -74,6 +74,7 @@ const SecondaryContactsTab = ({ contactId, secondaryContacts, addSecondaryContac
                                     <td className="fs-7">{sc.email || '—'}</td>
                                     <td>
                                         <Button variant="flush-dark" size="sm" className="btn-icon btn-rounded p-1"
+                                            title="Remove secondary contact"
                                             onClick={() => deleteSecondaryContact(sc.id)}>
                                             <Trash2 size={13} />
                                         </Button>

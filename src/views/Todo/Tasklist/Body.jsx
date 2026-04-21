@@ -74,15 +74,15 @@ const Body = ({ tasks = [], showInfo, onEdit, onAddTask = () => {}, toggleTask, 
                       <td>{task.category || '-'}</td>
                       <td className="text-end">
                         <div className="d-inline-flex align-items-center gap-2">
-                          <Button size="sm" variant="outline-info" className="d-inline-flex align-items-center gap-1" onClick={() => showInfo(task)}>
+                          <Button size="sm" variant="outline-info" className="d-inline-flex align-items-center gap-1" title="View task details" onClick={() => showInfo(task)}>
                             <i className="ri-eye-line" />
                             <span>View</span>
                           </Button>
-                          <Button size="sm" variant="outline-primary" className="d-inline-flex align-items-center gap-1" onClick={() => onEdit(task)}>
+                          <Button size="sm" variant="outline-primary" className="d-inline-flex align-items-center gap-1" title="Edit task" onClick={() => onEdit(task)}>
                             <i className="ri-edit-line" />
                             <span>Edit</span>
                           </Button>
-                          <Button size="sm" variant="outline-danger" className="d-inline-flex align-items-center gap-1" onClick={() => deleteTask(task.id)}>
+                          <Button size="sm" variant="outline-danger" className="d-inline-flex align-items-center gap-1" title="Delete task" onClick={() => deleteTask(task.id)}>
                             <i className="ri-delete-bin-line" />
                             <span>Delete</span>
                           </Button>

@@ -152,6 +152,7 @@ const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, ad
                                         <Button
                                             variant="flush-dark" size="sm"
                                             className="btn-icon btn-rounded p-0"
+                                            title="Remove opportunity"
                                             onClick={() => deleteOpportunity(opp.id)}
                                         >
                                             <span className="feather-icon" style={{ fontSize: 13 }}>✕</span>

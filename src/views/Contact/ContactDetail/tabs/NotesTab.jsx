@@ -54,6 +54,7 @@ const NotesTab = ({ entityType, entityId, notes, addNoteWithHistory, deleteNote 
                                         <small className="text-muted">{fmt(n.createdAt)}</small>
                                     </div>
                                     <Button variant="flush-dark" size="sm" className="btn-icon btn-rounded p-1 ms-2"
+                                        title="Delete note"
                                         onClick={() => deleteNote(n.id)}>
                                         <Trash2 size={13} />
                                     </Button>

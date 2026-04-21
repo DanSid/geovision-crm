@@ -183,6 +183,7 @@ const StockLocationsPage = ({
                                                     size="sm"
                                                     variant="soft-primary"
                                                     className="me-1 btn-icon btn-rounded"
+                                                    title="Edit location"
                                                     onClick={() => openEdit(item)}
                                                 >
                                                     <Edit2 size={14} />
@@ -191,6 +192,7 @@ const StockLocationsPage = ({
                                                     size="sm"
                                                     variant="soft-danger"
                                                     className="btn-icon btn-rounded"
+                                                    title="Delete location"
                                                     onClick={() => handleDelete(item.id)}
                                                 >
                                                     <Trash2 size={14} />

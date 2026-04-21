@@ -225,6 +225,7 @@ const MaintenanceRecordsPage = ({
                                                     size="sm"
                                                     variant="soft-primary"
                                                     className="me-1 btn-icon btn-rounded"
+                                                    title="Edit record"
                                                     onClick={() => openEdit(record)}
                                                 >
                                                     <Edit2 size={14} />
@@ -233,6 +234,7 @@ const MaintenanceRecordsPage = ({
                                                     size="sm"
                                                     variant="soft-danger"
                                                     className="btn-icon btn-rounded"
+                                                    title="Delete record"
                                                     onClick={() => handleDelete(record)}
                                                 >
                                                     <Trash2 size={14} />

@@ -163,10 +163,10 @@ const Customers = ({ customers, addCustomer, updateCustomer, deleteCustomer }) =
                                         </td>
                                         <td>{c.createdAt || '-'}</td>
                                         <td>
-                                            <Button size="sm" variant="soft-primary" className="me-1 btn-icon btn-rounded" onClick={() => openEdit(c)}>
+                                            <Button size="sm" variant="soft-primary" className="me-1 btn-icon btn-rounded" title="Edit customer" onClick={() => openEdit(c)}>
                                                 <i className="ri-edit-line" />
                                             </Button>
-                                            <Button size="sm" variant="soft-danger" className="btn-icon btn-rounded" onClick={() => deleteCustomer(c.id)}>
+                                            <Button size="sm" variant="soft-danger" className="btn-icon btn-rounded" title="Delete customer" onClick={() => deleteCustomer(c.id)}>
                                                 <i className="ri-delete-bin-line" />
                                             </Button>
                                         </td>

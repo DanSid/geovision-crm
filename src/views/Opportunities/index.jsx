@@ -202,8 +202,8 @@ const Opportunities = ({ opportunities, addOpportunity, updateOpportunity, delet
                                         <td>{formatDate(opportunity.startDate || opportunity.start)}</td>
                                         <td>{formatDate(opportunity.expectedCloseDate || opportunity.closeDate)}</td>
                                         <td>
-                                            <Button size="sm" variant="soft-primary" className="me-1 btn-icon btn-rounded" onClick={() => openEdit(opportunity)}><i className="ri-edit-line" /></Button>
-                                            <Button size="sm" variant="soft-danger" className="btn-icon btn-rounded" onClick={() => deleteOpportunity(opportunity.id)}><i className="ri-delete-bin-line" /></Button>
+                                            <Button size="sm" variant="soft-primary" className="me-1 btn-icon btn-rounded" title="Edit opportunity" onClick={() => openEdit(opportunity)}><i className="ri-edit-line" /></Button>
+                                            <Button size="sm" variant="soft-danger" className="btn-icon btn-rounded" title="Delete opportunity" onClick={() => deleteOpportunity(opportunity.id)}><i className="ri-delete-bin-line" /></Button>
                                         </td>
                                     </tr>
                                 ))}
