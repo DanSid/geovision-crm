@@ -48,7 +48,7 @@ export const SidebarMenu = [
                 grp_name: 'sales',
             },
             {
-                name: 'Summary',
+                name: 'Reports',
                 icon: <Icons.ChartBar />,
                 path: '/apps/taskboard/summary',
                 grp_name: 'sales',
@@ -62,33 +62,39 @@ export const SidebarMenu = [
         ]
     },
 
-    // ── Accounts ──────────────────────────────────────────────────────────────
+  // ── Jira ──────────────────────────────────────────────────────────────────
     {
-        group: 'Accounts',
+        group: 'Jira',
         contents: [
             {
-                name: 'Invoice List',
-                icon: <Icons.FileDigit />,
-                path: '/apps/accounts/invoice-list',
-                grp_name: 'accounts',
+                id: 'dash_tasks',
+                name: 'Tasks',
+                icon: <Icons.ListDetails />,
+                path: '/apps/tasks',
+                childrens: [
+                    {
+                        name: 'Task List',
+                        path: '/apps/tasks/task-list',
+                        grp_name: 'jira',
+                    },
+                    {
+                        name: 'Gantt',
+                        path: '/apps/tasks/gantt',
+                        grp_name: 'jira',
+                    },
+                ]
             },
             {
-                name: 'Invoice Templates',
-                icon: <Icons.LayoutGrid />,
-                path: '/apps/accounts/invoice-templates',
-                grp_name: 'accounts',
+                name: 'Kanban Board',
+                icon: <Icons.LayoutKanban />,
+                path: '/apps/taskboard/kanban-board',
+                grp_name: 'jira',
             },
             {
-                name: 'Create Invoice',
-                icon: <Icons.FilePlus />,
-                path: '/apps/accounts/create-invoice',
-                grp_name: 'accounts',
-            },
-            {
-                name: 'Invoice Preview',
-                icon: <Icons.Eye />,
-                path: '/apps/accounts/invoice-preview',
-                grp_name: 'accounts',
+                name: 'Calendar',
+                icon: <Icons.CalendarEvent />,
+                path: '/apps/jira/calendar',
+                grp_name: 'jira',
             },
         ]
     },
@@ -158,36 +164,38 @@ export const SidebarMenu = [
         ]
     },
 
-    // ── Jira ──────────────────────────────────────────────────────────────────
+       // ── Finance ──────────────────────────────────────────────────────────────
     {
-        group: 'Jira',
+        group: 'Finance',
         contents: [
             {
-                id: 'dash_tasks',
-                name: 'Tasks',
-                icon: <Icons.ListDetails />,
-                path: '/apps/tasks',
-                childrens: [
-                    {
-                        name: 'Task List',
-                        path: '/apps/tasks/task-list',
-                        grp_name: 'jira',
-                    },
-                    {
-                        name: 'Gantt',
-                        path: '/apps/tasks/gantt',
-                        grp_name: 'jira',
-                    },
-                ]
+                name: 'Invoice List',
+                icon: <Icons.FileDigit />,
+                path: '/apps/accounts/invoice-list',
+                grp_name: 'accounts',
             },
             {
-                name: 'Kanban Board',
-                icon: <Icons.LayoutKanban />,
-                path: '/apps/taskboard/kanban-board',
-                grp_name: 'jira',
+                name: 'Invoice Templates',
+                icon: <Icons.LayoutGrid />,
+                path: '/apps/accounts/invoice-templates',
+                grp_name: 'accounts',
+            },
+            {
+                name: 'Create Invoice',
+                icon: <Icons.FilePlus />,
+                path: '/apps/accounts/create-invoice',
+                grp_name: 'accounts',
+            },
+            {
+                name: 'Invoice Preview',
+                icon: <Icons.Eye />,
+                path: '/apps/accounts/invoice-preview',
+                grp_name: 'accounts',
             },
         ]
     },
+
+   
 
     // ── Account ───────────────────────────────────────────────────────────────
     {

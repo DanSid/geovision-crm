@@ -1,16 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Form, Modal, Table } from 'react-bootstrap';
-import { Plus } from 'react-feather';
+import { Edit2, Plus, Trash2 } from 'react-feather';
 import { connect } from 'react-redux';
-import { addOpportunityWithHistory, deleteOpportunity } from '../../../../redux/action/Crm';
+import { addOpportunityWithHistory, updateOpportunity, deleteOpportunity } from '../../../../redux/action/Crm';
 
 const STAGES = ['Prospecting', 'Qualification', 'Proposal', 'Negotiation', 'Closed Won', 'Closed Lost'];
 const stageBg = {
-    Prospecting: 'secondary',
+    Prospecting:   'secondary',
     Qualification: 'info',
-    Proposal: 'primary',
-    Negotiation: 'warning',
-    'Closed Won': 'success',
+    Proposal:      'primary',
+    Negotiation:   'warning',
+    'Closed Won':  'success',
     'Closed Lost': 'danger',
 };
 
@@ -27,11 +27,23 @@ const emptyForm = {
 const currency = (value, symbol) =>
     (value === '' || value === null || value === undefined ? '—' : `${symbol}${Number(value).toLocaleString()}`);
 
-const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, addOpportunityWithHistory, deleteOpportunity }) => {
-    const [show, setShow] = useState(false);
-    const [form, setForm] = useState(emptyForm);
-    const [errors, setErrors] = useState({});
+const toDateInput = (iso) => iso ? iso.slice(0, 10) : '';
 
+const OpportunitiesTab = ({
+    entityType, entityId, contactName,
+    opportunities,
+    addOpportunityWithHistory, updateOpportunity, deleteOpportunity,
+}) => {
+    /* ── modal state (add / edit) ── */
+    const [show, setShow]           = useState(false);
+    const [editingOpp, setEditingOpp] = useState(null);   // null = add, opp = edit
+    const [form, setForm]           = useState(emptyForm);
+    const [errors, setErrors]       = useState({});
+
+    /* ── inline stage state ── */
+    const [stageEditId, setStageEditId] = useState(null); // opp.id being edited inline
+
+    /* ── filtered & normalised opportunities ── */
     const myOpps = useMemo(() => opportunities
         .filter(opp =>
             String(opp.contactId) === String(entityId) ||
@@ -48,57 +60,82 @@ const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, ad
         .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)),
     [opportunities, entityId, contactName, entityType]);
 
-    const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
+    /* ── helpers ── */
+    const set = (key, value) => setForm(f => ({ ...f, [key]: value }));
+
+    const openAdd = () => {
+        setEditingOpp(null);
+        setForm(emptyForm);
+        setErrors({});
+        setShow(true);
+    };
+
+    const openEdit = (opp) => {
+        setEditingOpp(opp);
+        setForm({
+            name:              opp.name || '',
+            company:           opp.company || '',
+            dealValue:         opp.dealValue ?? opp.value ?? '',
+            dealCurrency:      (opp.dealCurrency || opp.currency || 'USD').toUpperCase(),
+            stage:             opp.stage || 'Prospecting',
+            startDate:         toDateInput(opp.startDate || opp.start || opp.createdAt),
+            expectedCloseDate: toDateInput(opp.expectedCloseDate || opp.closeDate),
+            notes:             opp.notes || '',
+        });
+        setErrors({});
+        setShow(true);
+    };
+
+    const closeModal = () => { setShow(false); setEditingOpp(null); setErrors({}); setForm(emptyForm); };
 
     const validate = () => {
-        const nextErrors = {};
-        if (!form.name.trim())       nextErrors.name = 'Name is required';
-        if (!form.company.trim())    nextErrors.company = 'Company is required';
-        if (form.dealValue === '' || form.dealValue === null) nextErrors.dealValue = 'Deal value is required';
-        if (!form.startDate)         nextErrors.startDate = 'Start date is required';
-        if (!form.expectedCloseDate) nextErrors.expectedCloseDate = 'Expected close date is required';
-        return nextErrors;
+        const e = {};
+        if (!form.name.trim())       e.name = 'Name is required';
+        if (!form.company.trim())    e.company = 'Company is required';
+        if (form.dealValue === '' || form.dealValue === null) e.dealValue = 'Deal value is required';
+        if (!form.startDate)         e.startDate = 'Start date is required';
+        if (!form.expectedCloseDate) e.expectedCloseDate = 'Expected close date is required';
+        return e;
     };
 
     const handleSave = () => {
-        const nextErrors = validate();
-        if (Object.keys(nextErrors).length) {
-            setErrors(nextErrors);
-            return;
-        }
+        const errs = validate();
+        if (Object.keys(errs).length) { setErrors(errs); return; }
 
-        const startDateISO         = form.startDate         ? new Date(`${form.startDate}T09:00:00`).toISOString()         : '';
-        const expectedCloseDateISO = form.expectedCloseDate ? new Date(`${form.expectedCloseDate}T17:00:00`).toISOString() : '';
+        const startISO    = form.startDate         ? new Date(`${form.startDate}T09:00:00`).toISOString()         : '';
+        const closeISO    = form.expectedCloseDate ? new Date(`${form.expectedCloseDate}T17:00:00`).toISOString() : '';
 
         const payload = {
-            // canonical fields (what /apps/opportunities reads)
             name:              form.name,
             company:           form.company,
             dealValue:         form.dealValue,
             dealCurrency:      form.dealCurrency,
             stage:             form.stage,
-            startDate:         startDateISO,
-            expectedCloseDate: expectedCloseDateISO,
+            startDate:         startISO,
+            expectedCloseDate: closeISO,
             notes:             form.notes,
-            // legacy aliases for normalizeOpportunity fallbacks
-            value:    form.dealValue,
-            amount:   form.dealValue,
+            // legacy aliases
+            value:    form.dealValue, amount: form.dealValue,
             currency: form.dealCurrency,
-            start:    startDateISO,
-            end:      expectedCloseDateISO,
-            closeDate: expectedCloseDateISO,
-            valueUsd: form.dealCurrency === 'USD' ? form.dealValue : '',
-            valueGhs: form.dealCurrency === 'GHS' ? form.dealValue : '',
-            // relationship fields
+            start: startISO, end: closeISO, closeDate: closeISO,
+            // relationship
             contactId:   entityType === 'contact' ? entityId : null,
             companyId:   entityType === 'company' ? entityId : null,
             contactName: contactName || '',
         };
 
-        addOpportunityWithHistory(payload, entityType, entityId);
-        setForm(emptyForm);
-        setErrors({});
-        setShow(false);
+        if (editingOpp) {
+            updateOpportunity({ ...editingOpp, ...payload });
+        } else {
+            addOpportunityWithHistory(payload, entityType, entityId);
+        }
+        closeModal();
+    };
+
+    /* ── inline stage change ── */
+    const handleStageChange = (opp, newStage) => {
+        updateOpportunity({ ...opp, stage: newStage, value: opp.dealValue, currency: opp.dealCurrency });
+        setStageEditId(null);
     };
 
     const fmt = (date) =>
@@ -109,19 +146,26 @@ const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, ad
         return cur ? cur.symbol : '$';
     };
 
+    /* ════════════════════════════════════════════════════════════════════
+       RENDER
+    ════════════════════════════════════════════════════════════════════ */
     return (
         <div>
+            {/* ── Header ── */}
             <div className="d-flex justify-content-between align-items-center mb-3">
-                <h6 className="mb-0 text-muted fs-7">{myOpps.length} opportunit{myOpps.length === 1 ? 'y' : 'ies'}</h6>
-                <Button size="sm" variant="primary" onClick={() => setShow(true)}>
+                <h6 className="mb-0 text-muted fs-7">
+                    {myOpps.length} opportunit{myOpps.length === 1 ? 'y' : 'ies'}
+                </h6>
+                <Button size="sm" variant="primary" onClick={openAdd}>
                     <Plus size={14} className="me-1" />Add Opportunity
                 </Button>
             </div>
 
+            {/* ── Table ── */}
             {myOpps.length === 0 ? (
                 <div className="text-center py-5 text-muted">
                     <p className="mb-2">No opportunities linked yet.</p>
-                    <Button size="sm" variant="outline-primary" onClick={() => setShow(true)}>Add first opportunity</Button>
+                    <Button size="sm" variant="outline-primary" onClick={openAdd}>Add first opportunity</Button>
                 </div>
             ) : (
                 <div className="table-responsive">
@@ -134,7 +178,7 @@ const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, ad
                                 <th>Value</th>
                                 <th>Start Date</th>
                                 <th>Expected Close</th>
-                                <th></th>
+                                <th style={{ width: 80 }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -142,20 +186,56 @@ const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, ad
                                 <tr key={opp.id}>
                                     <td className="fw-medium fs-7">{opp.name}</td>
                                     <td className="fs-7">{opp.company}</td>
+
+                                    {/* ── Inline stage cell ── */}
                                     <td>
-                                        <Badge bg={stageBg[opp.stage] || 'secondary'} className="fw-normal">{opp.stage}</Badge>
+                                        {stageEditId === opp.id ? (
+                                            <Form.Select
+                                                size="sm"
+                                                autoFocus
+                                                defaultValue={opp.stage}
+                                                onChange={e => handleStageChange(opp, e.target.value)}
+                                                onBlur={() => setStageEditId(null)}
+                                                style={{ minWidth: 130 }}
+                                            >
+                                                {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                                            </Form.Select>
+                                        ) : (
+                                            <Badge
+                                                bg={stageBg[opp.stage] || 'secondary'}
+                                                className="fw-normal"
+                                                style={{ cursor: 'pointer' }}
+                                                title="Click to change stage"
+                                                onClick={() => setStageEditId(opp.id)}
+                                            >
+                                                {opp.stage}
+                                            </Badge>
+                                        )}
                                     </td>
+
                                     <td className="fs-7">{currency(opp.dealValue, currencySymbol(opp.dealCurrency))}</td>
                                     <td className="fs-7">{fmt(opp.startDate)}</td>
                                     <td className="fs-7">{fmt(opp.expectedCloseDate)}</td>
+
+                                    {/* ── Actions ── */}
                                     <td>
                                         <Button
-                                            variant="flush-dark" size="sm"
-                                            className="btn-icon btn-rounded p-0"
-                                            title="Remove opportunity"
-                                            onClick={() => deleteOpportunity(opp.id)}
+                                            variant="soft-primary" size="sm"
+                                            className="btn-icon btn-rounded me-1"
+                                            title="Edit opportunity"
+                                            onClick={() => openEdit(opp)}
                                         >
-                                            <span className="feather-icon" style={{ fontSize: 13 }}>✕</span>
+                                            <Edit2 size={13} />
+                                        </Button>
+                                        <Button
+                                            variant="soft-danger" size="sm"
+                                            className="btn-icon btn-rounded"
+                                            title="Delete opportunity"
+                                            onClick={() => {
+                                                if (window.confirm(`Delete "${opp.name}"?`)) deleteOpportunity(opp.id);
+                                            }}
+                                        >
+                                            <Trash2 size={13} />
                                         </Button>
                                     </td>
                                 </tr>
@@ -165,13 +245,16 @@ const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, ad
                 </div>
             )}
 
-            <Modal show={show} onHide={() => { setShow(false); setErrors({}); setForm(emptyForm); }}>
+            {/* ════════════════════════════════════════════════════════════════
+                ADD / EDIT MODAL
+            ════════════════════════════════════════════════════════════════ */}
+            <Modal show={show} onHide={closeModal} size="lg" centered>
                 <Modal.Header closeButton>
-                    <Modal.Title as="h5">Add Opportunity</Modal.Title>
+                    <Modal.Title as="h5">{editingOpp ? 'Edit Opportunity' : 'Add Opportunity'}</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <div className="row g-3">
-                        {/* Row 1 – Opportunity Name (full width) */}
+                        {/* Opportunity Name */}
                         <div className="col-12">
                             <Form.Label className="fs-7">Opportunity Name <span className="text-danger">*</span></Form.Label>
                             <Form.Control
@@ -179,11 +262,12 @@ const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, ad
                                 onChange={e => set('name', e.target.value)}
                                 isInvalid={!!errors.name}
                                 placeholder="e.g. Website Redesign"
+                                autoFocus
                             />
                             <Form.Control.Feedback type="invalid">{errors.name}</Form.Control.Feedback>
                         </div>
 
-                        {/* Row 2 – Company | Stage */}
+                        {/* Company | Stage */}
                         <div className="col-md-6">
                             <Form.Label className="fs-7">Company <span className="text-danger">*</span></Form.Label>
                             <Form.Control
@@ -197,12 +281,12 @@ const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, ad
                         <div className="col-md-6">
                             <Form.Label className="fs-7">Stage</Form.Label>
                             <Form.Select size="sm" value={form.stage} onChange={e => set('stage', e.target.value)}>
-                                {STAGES.map(s => <option key={s}>{s}</option>)}
+                                {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
                             </Form.Select>
                         </div>
 
-                        {/* Row 3 – Deal Value | Currency */}
-                          <div className="col-md-6">
+                        {/* Currency | Deal Value */}
+                        <div className="col-md-6">
                             <Form.Label className="fs-7">Currency</Form.Label>
                             <Form.Select size="sm" value={form.dealCurrency} onChange={e => set('dealCurrency', e.target.value)}>
                                 {CURRENCIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -219,9 +303,8 @@ const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, ad
                             />
                             <Form.Control.Feedback type="invalid">{errors.dealValue}</Form.Control.Feedback>
                         </div>
-                      
 
-                        {/* Row 4 – Start Date | Expected Close Date */}
+                        {/* Dates */}
                         <div className="col-md-6">
                             <Form.Label className="fs-7">Start Date <span className="text-danger">*</span></Form.Label>
                             <Form.Control
@@ -243,7 +326,7 @@ const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, ad
                             <Form.Control.Feedback type="invalid">{errors.expectedCloseDate}</Form.Control.Feedback>
                         </div>
 
-                        {/* Row 5 – Notes (full width) */}
+                        {/* Notes */}
                         <div className="col-12">
                             <Form.Label className="fs-7">Notes</Form.Label>
                             <Form.Control
@@ -256,11 +339,9 @@ const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, ad
                     </div>
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" size="sm" onClick={() => { setShow(false); setErrors({}); setForm(emptyForm); }}>
-                        Cancel
-                    </Button>
+                    <Button variant="secondary" size="sm" onClick={closeModal}>Cancel</Button>
                     <Button variant="primary" size="sm" onClick={handleSave}>
-                        Save
+                        {editingOpp ? 'Save Changes' : 'Add Opportunity'}
                     </Button>
                 </Modal.Footer>
             </Modal>
@@ -269,4 +350,8 @@ const OpportunitiesTab = ({ entityType, entityId, contactName, opportunities, ad
 };
 
 const mapStateToProps = ({ opportunities }) => ({ opportunities });
-export default connect(mapStateToProps, { addOpportunityWithHistory, deleteOpportunity })(OpportunitiesTab);
+export default connect(mapStateToProps, {
+    addOpportunityWithHistory,
+    updateOpportunity,
+    deleteOpportunity,
+})(OpportunitiesTab);

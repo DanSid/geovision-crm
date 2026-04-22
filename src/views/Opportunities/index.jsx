@@ -53,6 +53,7 @@ const Opportunities = ({ opportunities, addOpportunity, updateOpportunity, delet
     const [form, setForm] = useState(emptyForm);
     const [search, setSearch] = useState('');
     const [errors, setErrors] = useState({});
+    const [stageEditId, setStageEditId] = useState(null); // inline stage editing
 
     const openAdd = () => {
         setEditing(null);
@@ -198,7 +199,33 @@ const Opportunities = ({ opportunities, addOpportunity, updateOpportunity, delet
                                         <td>{opportunity.contactName || '-'}</td>
                                         <td>{currencyFormat(getDealAmount(opportunity), opportunity.dealCurrency === 'GHS' ? '₵' : '$')}</td>
                                         <td>{opportunity.dealCurrency || 'USD'}</td>
-                                        <td><Badge bg={STAGE_COLORS[opportunity.stage] || 'secondary'} className="fw-normal">{opportunity.stage}</Badge></td>
+                                        <td>
+                                            {stageEditId === opportunity.id ? (
+                                                <Form.Select
+                                                    size="sm"
+                                                    autoFocus
+                                                    defaultValue={opportunity.stage}
+                                                    onChange={e => {
+                                                        updateOpportunity({ ...opportunity, stage: e.target.value });
+                                                        setStageEditId(null);
+                                                    }}
+                                                    onBlur={() => setStageEditId(null)}
+                                                    style={{ minWidth: 140 }}
+                                                >
+                                                    {STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                                                </Form.Select>
+                                            ) : (
+                                                <Badge
+                                                    bg={STAGE_COLORS[opportunity.stage] || 'secondary'}
+                                                    className="fw-normal"
+                                                    style={{ cursor: 'pointer' }}
+                                                    title="Click to change stage"
+                                                    onClick={() => setStageEditId(opportunity.id)}
+                                                >
+                                                    {opportunity.stage}
+                                                </Badge>
+                                            )}
+                                        </td>
                                         <td>{formatDate(opportunity.startDate || opportunity.start)}</td>
                                         <td>{formatDate(opportunity.expectedCloseDate || opportunity.closeDate)}</td>
                                         <td>
