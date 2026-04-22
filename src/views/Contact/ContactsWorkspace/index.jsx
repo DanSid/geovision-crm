@@ -12,6 +12,7 @@ import SecondaryContactsTab from '../ContactDetail/tabs/SecondaryContactsTab';
 
 import { addContact, updateContact, deleteContact, addCustomer, updateCustomer } from '../../../redux/action/Crm';
 import { getContactName } from '../../../utils/contactWorkspace';
+import { showToast } from '../../../components/GlobalToast';
 
 /* ── Blank new-contact form ─────────────────────────────────────────────── */
 const EMPTY = {
@@ -98,10 +99,22 @@ const ContactsWorkspace = ({ contacts: allContacts = [], customers = [], addCont
         const fullName = `${payload.firstName} ${payload.lastName}`.trim();
 
         if (editingContact) {
+            // ── When editing, check for duplicate email on a DIFFERENT contact ──
+            const editId = editingContact.id || editingContact._id;
+            const emailDuplicate = allContacts.find(c => {
+                const cId = c.id || c._id;
+                return cId !== editId && c.email && c.email.toLowerCase() === payload.email.toLowerCase() && !c.deleted;
+            });
+            if (emailDuplicate) {
+                const proceed = window.confirm(
+                    `⚠️ Duplicate detected!\n\n"${getContactName(emailDuplicate)}" already has this email address (${payload.email}).\n\nDo you still want to save these changes?`
+                );
+                if (!proceed) return;
+            }
+
             updateContact({ ...editingContact, ...payload });
 
             // ── Sync matching customer record ──────────────────────────────
-            const editId = editingContact.id || editingContact._id;
             const matchingCustomer = customers.find(c =>
                 c.contactId === editId ||
                 (c.email && c.email === editingContact.email)
@@ -115,7 +128,30 @@ const ContactsWorkspace = ({ contacts: allContacts = [], customers = [], addCont
                     company: payload.company || matchingCustomer.company || '',
                 });
             }
+            showToast(`${fullName} updated successfully.`, 'success');
         } else {
+            // ── For new contacts, check for duplicate email OR full name ──
+            const emailDuplicate = allContacts.find(c =>
+                !c.deleted && c.email && c.email.toLowerCase() === payload.email.toLowerCase()
+            );
+            const nameDuplicate = !emailDuplicate && allContacts.find(c => {
+                if (c.deleted) return false;
+                const existingName = getContactName(c).toLowerCase();
+                return existingName === fullName.toLowerCase();
+            });
+
+            if (emailDuplicate) {
+                const proceed = window.confirm(
+                    `⚠️ Duplicate detected!\n\nA contact named "${getContactName(emailDuplicate)}" already uses this email address (${payload.email}).\n\nDo you still want to create this contact?`
+                );
+                if (!proceed) return;
+            } else if (nameDuplicate) {
+                const proceed = window.confirm(
+                    `⚠️ Possible duplicate!\n\nA contact named "${getContactName(nameDuplicate)}" already exists.\n\nDo you still want to create this contact?`
+                );
+                if (!proceed) return;
+            }
+
             addContact(payload);
             // ── Create linked customer record ──────────────────────────────
             addCustomer({
@@ -126,6 +162,7 @@ const ContactsWorkspace = ({ contacts: allContacts = [], customers = [], addCont
                 status: 'Active',
                 createdAt: new Date().toLocaleDateString(),
             });
+            showToast(`${fullName} added successfully!`, 'success');
         }
         setShowAddModal(false);
     };

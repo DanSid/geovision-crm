@@ -7,6 +7,7 @@ import PageFooter from '../Footer/PageFooter';
 import { useWindowWidth } from '@react-hook/window-size';
 import TopNav from '../Header/TopNav';
 import Sidebar from '../Sidebar/Sidebar';
+import GlobalToast from '../../components/GlobalToast';
 
 const CompactLayout = ({ children, navCollapsed, topNavCollapsed, toggleCollapsedNav, maximize }) => {
 
@@ -38,6 +39,8 @@ const CompactLayout = ({ children, navCollapsed, topNavCollapsed, toggleCollapse
             data-footer="simple"
             data-hover={dataHover ? "active" : ""}
         >
+            {/* Global toast notifications */}
+            <GlobalToast />
             {/* Top Navbar */}
             <TopNav />
             {/* Vertical Sidebar */}

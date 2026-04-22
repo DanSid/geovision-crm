@@ -110,6 +110,12 @@ export const SidebarMenu = [
                 grp_name: 'logistics',
             },
             {
+                name: 'Calendar',
+                icon: <Icons.CalendarEvent />,
+                path: '/apps/logistics/calendar',
+                grp_name: 'logistics',
+            },
+            {
                 name: 'Equipment',
                 icon: <Icons.Tool />,
                 path: '/apps/logistics/equipment',

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import SimpleBar from 'simplebar-react';
-import { AlignLeft, Bell, Calendar, CheckSquare, Clock, Settings, Tag } from 'react-feather';
+import { AlignLeft, Bell, Calendar, CheckSquare, Clock, Settings, Tag, TrendingUp } from 'react-feather';
 import { Button, Container, Dropdown, Nav, Navbar } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { connect } from 'react-redux';
@@ -29,20 +29,13 @@ const fmtRelative = (dateStr) => {
     return `Due in ${diffDays} days`;
 };
 
-const isUrgent = (dateStr) => {
-    if (!dateStr) return false;
-    const d = new Date(dateStr);
-    if (isNaN(d)) return false;
-    const diffDays = Math.ceil((d - new Date()) / (1000 * 60 * 60 * 24));
-    return diffDays <= 3;
-};
-
-const CompactNav = ({ navCollapsed, toggleCollapsedNav, currentUser, logoutUser, tasks = [] }) => {
+const CompactNav = ({ navCollapsed, toggleCollapsedNav, currentUser, logoutUser, tasks = [], opportunities = [] }) => {
     const { theme } = useTheme();
 
+    /* ── Task due-soon notifications (within 3 days) ── */
     const dueNotifications = useMemo(() => {
         const now = new Date();
-        const upcoming = tasks
+        return tasks
             .filter((t) => {
                 if (t.done) return false;
                 const due = t.dueDate || t.deadline || t.Deadline;
@@ -57,10 +50,30 @@ const CompactNav = ({ navCollapsed, toggleCollapsedNav, currentUser, logoutUser,
                 const db = new Date(b.dueDate || b.deadline || b.Deadline || 0);
                 return da - db;
             });
-        return upcoming;
     }, [tasks]);
 
-    const notifCount = dueNotifications.length;
+    /* ── Opportunity deadline notifications (close within 7 days, not already closed) ── */
+    const oppNotifications = useMemo(() => {
+        const now = new Date();
+        const CLOSED = ['Closed Won', 'Closed Lost'];
+        return opportunities
+            .filter((o) => {
+                if (CLOSED.includes(o.stage)) return false;
+                const due = o.expectedCloseDate || o.closeDate;
+                if (!due) return false;
+                const d = new Date(due);
+                if (isNaN(d)) return false;
+                const diffDays = Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+                return diffDays <= 7;
+            })
+            .sort((a, b) => {
+                const da = new Date(a.expectedCloseDate || a.closeDate || 0);
+                const db = new Date(b.expectedCloseDate || b.closeDate || 0);
+                return da - db;
+            });
+    }, [opportunities]);
+
+    const notifCount = dueNotifications.length + oppNotifications.length;
 
     return (
         <Navbar expand="xl" className="hk-navbar navbar-light fixed-top">
@@ -124,45 +137,92 @@ const CompactNav = ({ navCollapsed, toggleCollapsedNav, currentUser, logoutUser,
                                         </Button>
                                     </Dropdown.Header>
 
-                                    <SimpleBar className="dropdown-body p-2" style={{ maxHeight: 360 }}>
-                                        {dueNotifications.length === 0 ? (
+                                    <SimpleBar className="dropdown-body p-2" style={{ maxHeight: 400 }}>
+                                        {dueNotifications.length === 0 && oppNotifications.length === 0 ? (
                                             <div className="text-center py-4 text-muted fs-7">
                                                 <span className="feather-icon d-block mb-2"><CheckSquare size={28} /></span>
-                                                All tasks are on track!
+                                                Everything is on track!
                                             </div>
                                         ) : (
-                                            dueNotifications.map((task) => {
-                                                const due = task.dueDate || task.deadline || task.Deadline;
-                                                const overdue = new Date(due) < new Date();
-                                                const label = fmtRelative(due);
-                                                const taskName = task.title || task.Task_Name || task.name || 'Untitled Task';
-                                                return (
-                                                    <Dropdown.Item key={task.id} as={Link} to="/apps/tasks/task-list">
-                                                        <div className="media">
-                                                            <div className="media-head">
-                                                                <div className={`avatar avatar-icon avatar-sm avatar-${overdue ? 'danger' : 'warning'} avatar-rounded`}>
-                                                                    <span className="initial-wrap">
-                                                                        <span className="feather-icon">
-                                                                            {overdue ? <Clock /> : <Calendar />}
-                                                                        </span>
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            <div className="media-body">
-                                                                <div className="notifications-text">
-                                                                    <strong>{taskName}</strong>
-                                                                </div>
-                                                                <div className="notifications-info">
-                                                                    <HkBadge bg={overdue ? 'danger' : 'warning'} soft>
-                                                                        {overdue ? 'Overdue' : 'Due soon'}
-                                                                    </HkBadge>
-                                                                    <div className="notifications-time">{label}</div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </Dropdown.Item>
-                                                );
-                                            })
+                                            <>
+                                                {/* ── Task notifications ── */}
+                                                {dueNotifications.length > 0 && (
+                                                    <>
+                                                        <div className="px-2 py-1 text-muted fs-8 fw-semibold text-uppercase" style={{ letterSpacing: '0.05em' }}>Tasks</div>
+                                                        {dueNotifications.map((task) => {
+                                                            const due = task.dueDate || task.deadline || task.Deadline;
+                                                            const overdue = new Date(due) < new Date();
+                                                            const label = fmtRelative(due);
+                                                            const taskName = task.title || task.Task_Name || task.name || 'Untitled Task';
+                                                            return (
+                                                                <Dropdown.Item key={`task-${task.id}`} as={Link} to="/apps/tasks/task-list">
+                                                                    <div className="media">
+                                                                        <div className="media-head">
+                                                                            <div className={`avatar avatar-icon avatar-sm avatar-${overdue ? 'danger' : 'warning'} avatar-rounded`}>
+                                                                                <span className="initial-wrap">
+                                                                                    <span className="feather-icon">
+                                                                                        {overdue ? <Clock /> : <Calendar />}
+                                                                                    </span>
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="media-body">
+                                                                            <div className="notifications-text">
+                                                                                <strong>{taskName}</strong>
+                                                                            </div>
+                                                                            <div className="notifications-info">
+                                                                                <HkBadge bg={overdue ? 'danger' : 'warning'} soft>
+                                                                                    {overdue ? 'Task overdue' : 'Due soon'}
+                                                                                </HkBadge>
+                                                                                <div className="notifications-time">{label}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </Dropdown.Item>
+                                                            );
+                                                        })}
+                                                    </>
+                                                )}
+
+                                                {/* ── Opportunity notifications ── */}
+                                                {oppNotifications.length > 0 && (
+                                                    <>
+                                                        <div className="px-2 py-1 mt-1 text-muted fs-8 fw-semibold text-uppercase" style={{ letterSpacing: '0.05em' }}>Opportunities</div>
+                                                        {oppNotifications.map((opp) => {
+                                                            const due = opp.expectedCloseDate || opp.closeDate;
+                                                            const overdue = new Date(due) < new Date();
+                                                            const label = fmtRelative(due);
+                                                            const oppName = opp.name || opp.title || 'Untitled Opportunity';
+                                                            return (
+                                                                <Dropdown.Item key={`opp-${opp.id || opp._id}`} as={Link} to="/apps/opportunities">
+                                                                    <div className="media">
+                                                                        <div className="media-head">
+                                                                            <div className={`avatar avatar-icon avatar-sm avatar-${overdue ? 'danger' : 'success'} avatar-rounded`}>
+                                                                                <span className="initial-wrap">
+                                                                                    <span className="feather-icon">
+                                                                                        <TrendingUp />
+                                                                                    </span>
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="media-body">
+                                                                            <div className="notifications-text">
+                                                                                <strong>{oppName}</strong>
+                                                                            </div>
+                                                                            <div className="notifications-info">
+                                                                                <HkBadge bg={overdue ? 'danger' : 'success'} soft>
+                                                                                    {overdue ? 'Close date passed' : 'Closing soon'}
+                                                                                </HkBadge>
+                                                                                <div className="notifications-time">{label}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </Dropdown.Item>
+                                                            );
+                                                        })}
+                                                    </>
+                                                )}
+                                            </>
                                         )}
                                     </SimpleBar>
 
@@ -243,10 +303,11 @@ const CompactNav = ({ navCollapsed, toggleCollapsedNav, currentUser, logoutUser,
     );
 };
 
-const mapStateToProps = ({ theme, auth, tasks }) => ({
+const mapStateToProps = ({ theme, auth, tasks, opportunities }) => ({
     navCollapsed: theme.navCollapsed,
     currentUser: auth.currentUser,
     tasks: tasks || [],
+    opportunities: opportunities || [],
 });
 
 export default connect(mapStateToProps, { toggleCollapsedNav, logoutUser })(CompactNav);

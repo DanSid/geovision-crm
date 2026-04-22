@@ -44,6 +44,7 @@ import Opportunities from "../views/Opportunities";
 import Customers from "../views/Customers";
 import Settings from "../views/Settings";
 import JiraCalendar from "../views/JiraCalendar";
+import LogisticsCalendar from "../views/LogisticsCalendar";
 //Pages
 import Profile from "../views/Profiles/Profile";
 import EditProfile from "../views/Profiles/EditProfile";
@@ -101,6 +102,7 @@ export const routes = [
     { path: 'apps/tasks/task-list', exact: true, component: TaskList },
     { path: 'apps/tasks/gantt', exact: true, component: Gantt },
     { path: 'apps/jira/calendar', exact: true, component: JiraCalendar },
+    { path: 'apps/logistics/calendar', exact: true, component: LogisticsCalendar },
     // Keep old todo paths for backwards compat
     { path: 'apps/todo/task-list', exact: true, component: TaskList },
     { path: 'apps/todo/gantt', exact: true, component: Gantt },

@@ -4,6 +4,8 @@ import { connect } from 'react-redux';
 import { addTask, updateTask } from '../../redux/action/Crm';
 import { normalizeTask, TASK_CATEGORIES, TASK_PRIORITIES, TASK_STATUSES } from '../../utils/taskData';
 import { loadUsers } from '../../redux/action/Auth';
+import { getContactName } from '../../utils/contactWorkspace';
+import { showToast } from '../../components/GlobalToast';
 
 const emptyTask = {
   title: '',
@@ -14,7 +16,10 @@ const emptyTask = {
   status: 'To Do',
   category: 'General',
   labels: '',
-  relatedCustomerName: '',
+  relatedContactId: '',
+  relatedContactName: '',
+  relatedOpportunityId: '',
+  relatedOpportunityName: '',
   assignedUserId: '',
   reporterUserId: '',
   linkUrl: '',
@@ -24,7 +29,17 @@ const emptyTask = {
   attachmentSize: '',
 };
 
-const AddNewTask = ({ show, hide, addTask, updateTask, currentUser, editingTask = null, customers = [], defaultStatus }) => {
+const AddNewTask = ({
+  show,
+  hide,
+  addTask,
+  updateTask,
+  currentUser,
+  editingTask = null,
+  contacts = [],
+  opportunities = [],
+  defaultStatus,
+}) => {
   const [form, setForm] = useState(emptyTask);
   const attachmentInputRef = useRef(null);
   const users = useMemo(() => loadUsers(), []);
@@ -33,12 +48,27 @@ const AddNewTask = ({ show, hide, addTask, updateTask, currentUser, editingTask 
     const map = new Map();
     [currentUser, ...users].filter(Boolean).forEach((user) => {
       const id = String(user.id);
-      if (!map.has(id)) {
-        map.set(id, user);
-      }
+      if (!map.has(id)) map.set(id, user);
     });
     return Array.from(map.values());
   }, [users, currentUser]);
+
+  /* ── Sorted contact list ── */
+  const sortedContacts = useMemo(() =>
+    [...contacts]
+      .filter(c => !c.deleted)
+      .sort((a, b) => getContactName(a).localeCompare(getContactName(b))),
+    [contacts]
+  );
+
+  /* ── Opportunities filtered to selected contact ── */
+  const filteredOpps = useMemo(() => {
+    if (!form.relatedContactId) return [];
+    return opportunities.filter(o =>
+      o.contactId === form.relatedContactId ||
+      String(o.contactId) === String(form.relatedContactId)
+    );
+  }, [opportunities, form.relatedContactId]);
 
   useEffect(() => {
     if (editingTask) {
@@ -49,6 +79,10 @@ const AddNewTask = ({ show, hide, addTask, updateTask, currentUser, editingTask 
         assignedUserId: editingTask.assignedUserId ? String(editingTask.assignedUserId) : '',
         reporterUserId: editingTask.reporterUserId ? String(editingTask.reporterUserId) : '',
         startDate: editingTask.startDate || editingTask.start || editingTask.dueDate || '',
+        relatedContactId: editingTask.relatedContactId || '',
+        relatedContactName: editingTask.relatedContactName || '',
+        relatedOpportunityId: editingTask.relatedOpportunityId || '',
+        relatedOpportunityName: editingTask.relatedOpportunityName || '',
       });
     } else {
       setForm({
@@ -64,12 +98,35 @@ const AddNewTask = ({ show, hide, addTask, updateTask, currentUser, editingTask 
 
   const updateField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
+  /* ── When contact changes, reset opportunity selection ── */
+  const handleContactChange = (e) => {
+    const contactId = e.target.value;
+    const contact = sortedContacts.find(c => (c.id || c._id) === contactId);
+    setForm(prev => ({
+      ...prev,
+      relatedContactId: contactId,
+      relatedContactName: contact ? getContactName(contact) : '',
+      relatedOpportunityId: '',
+      relatedOpportunityName: '',
+    }));
+  };
+
+  /* ── When opportunity changes ── */
+  const handleOppChange = (e) => {
+    const oppId = e.target.value;
+    const opp = filteredOpps.find(o => (o.id || o._id) === oppId);
+    setForm(prev => ({
+      ...prev,
+      relatedOpportunityId: oppId,
+      relatedOpportunityName: opp ? (opp.name || opp.title || '') : '',
+    }));
+  };
+
   const userFromId = (userId) => teamMembers.find((item) => String(item.id) === String(userId || ''));
 
   const handleAttachmentChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = () => {
       updateField('attachmentName', file.name);
@@ -86,17 +143,13 @@ const AddNewTask = ({ show, hide, addTask, updateTask, currentUser, editingTask 
     updateField('attachmentType', '');
     updateField('attachmentSize', '');
     updateField('attachmentUrl', '');
-    if (attachmentInputRef.current) {
-      attachmentInputRef.current.value = '';
-    }
+    if (attachmentInputRef.current) attachmentInputRef.current.value = '';
   };
 
   const handleSave = () => {
     try {
       const assignee = userFromId(form.assignedUserId || currentUser?.id);
       const reporter = userFromId(form.reporterUserId || currentUser?.id);
-      const safeCustomers = Array.isArray(customers) ? customers : [];
-      const relatedCustomer = safeCustomers.find((item) => item.name === form.relatedCustomerName);
       const startDate = form.startDate || form.dueDate || new Date().toISOString();
 
       const payload = normalizeTask({
@@ -109,15 +162,23 @@ const AddNewTask = ({ show, hide, addTask, updateTask, currentUser, editingTask 
         assignedTo: assignee?.name || assignee?.username || currentUser?.name || 'Unassigned',
         reporterUserId: reporter?.id || currentUser?.id || null,
         reporter: reporter?.name || reporter?.username || currentUser?.name || 'Unassigned',
-        relatedCustomerId: relatedCustomer?.id || null,
-        relatedCustomerName: form.relatedCustomerName,
+        relatedContactId: form.relatedContactId || null,
+        relatedContactName: form.relatedContactName || '',
+        relatedOpportunityId: form.relatedOpportunityId || null,
+        relatedOpportunityName: form.relatedOpportunityName || '',
       }, currentUser);
 
-      if (editingTask) updateTask(payload);
-      else addTask(payload);
+      if (editingTask) {
+        updateTask(payload);
+        showToast('Task updated successfully!', 'success');
+      } else {
+        addTask(payload);
+        showToast('Task added successfully!', 'success');
+      }
       hide();
     } catch (err) {
       console.error('[AddNewTask] handleSave error:', err);
+      showToast('Failed to save task. Please try again.', 'danger');
     }
   };
 
@@ -192,15 +253,51 @@ const AddNewTask = ({ show, hide, addTask, updateTask, currentUser, editingTask 
               </Form.Select>
             </Form.Group>
           </Col>
+
+          {/* ── Contact dropdown ── */}
           <Col md={4}>
             <Form.Group>
-              <Form.Label>Related customer</Form.Label>
-              <Form.Control list="customer-list" value={form.relatedCustomerName || ''} onChange={(e) => updateField('relatedCustomerName', e.target.value)} placeholder="Customer name" />
-              <datalist id="customer-list">
-                {customers.map((customer) => <option key={customer.id} value={customer.name} />)}
-              </datalist>
+              <Form.Label>Related Contact</Form.Label>
+              <Form.Select value={form.relatedContactId || ''} onChange={handleContactChange}>
+                <option value="">— Select contact —</option>
+                {sortedContacts.map((c) => {
+                  const cId = c.id || c._id;
+                  return (
+                    <option key={cId} value={cId}>{getContactName(c)}{c.company ? ` (${c.company})` : ''}</option>
+                  );
+                })}
+              </Form.Select>
             </Form.Group>
           </Col>
+
+          {/* ── Opportunity dropdown (only shown when contact is selected) ── */}
+          <Col md={4}>
+            <Form.Group>
+              <Form.Label>Related Opportunity</Form.Label>
+              <Form.Select
+                value={form.relatedOpportunityId || ''}
+                onChange={handleOppChange}
+                disabled={!form.relatedContactId}
+              >
+                <option value="">
+                  {form.relatedContactId
+                    ? filteredOpps.length === 0
+                      ? '— No opportunities for this contact —'
+                      : '— Select opportunity —'
+                    : '— Select a contact first —'}
+                </option>
+                {filteredOpps.map((o) => {
+                  const oId = o.id || o._id;
+                  return (
+                    <option key={oId} value={oId}>
+                      {o.name || o.title || 'Untitled'}{o.stage ? ` [${o.stage}]` : ''}
+                    </option>
+                  );
+                })}
+              </Form.Select>
+            </Form.Group>
+          </Col>
+
           <Col md={8}>
             <Form.Group>
               <Form.Label>Link</Form.Label>
@@ -246,5 +343,9 @@ const AddNewTask = ({ show, hide, addTask, updateTask, currentUser, editingTask 
   );
 };
 
-const mapState = ({ auth, customers }) => ({ currentUser: auth.currentUser, customers });
+const mapState = ({ auth, contacts, opportunities }) => ({
+  currentUser: auth.currentUser,
+  contacts: contacts || [],
+  opportunities: opportunities || [],
+});
 export default connect(mapState, { addTask, updateTask })(AddNewTask);
