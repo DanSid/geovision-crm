@@ -130,7 +130,7 @@ export const SidebarMenu = [
             {
                 id: 'dash_logistics_maintenance',
                 name: 'Maintenance',
-                icon: <Icons.Wrench />,
+                icon: <Icons.Tools />,
                 path: '/apps/logistics/maintenance',
                 childrens: [
                     {
