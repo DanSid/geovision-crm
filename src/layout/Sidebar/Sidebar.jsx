@@ -9,13 +9,25 @@ import SidebarHeader from './SidebarHeader';
 import { SidebarMenu } from './SidebarMenu';
 import classNames from 'classnames';
 import { useWindowWidth } from '@react-hook/window-size';
+import { getEffectivePermissions, GROUP_TO_KEY } from '../../utils/permissions';
 
-const Sidebar = ({ navCollapsed, toggleCollapsedNav }) => {
+const Sidebar = ({ navCollapsed, toggleCollapsedNav, currentUser, permissions }) => {
 
     const [activeMenu, setActiveMenu] = useState();
     const [activeSubMenu, setActiveSubMenu] = useState();
 
     const windowWidth = useWindowWidth();
+
+    // ── Compute effective permissions for the signed-in user ──────────────────
+    // Admin always sees everything; per-user overrides apply first, then global.
+    const effectivePerms = getEffectivePermissions(currentUser, permissions);
+
+    // Filter top-level sidebar groups by section key
+    const visibleMenu = SidebarMenu.filter(routes => {
+        const sectionKey = GROUP_TO_KEY[routes.group];
+        if (!sectionKey) return true; // unknown group → always show
+        return effectivePerms[sectionKey] !== false;
+    });
 
     const handleClick = (menuName) => {
         setActiveMenu(menuName);
@@ -36,7 +48,7 @@ const Sidebar = ({ navCollapsed, toggleCollapsedNav }) => {
                 {/* Main Menu */}
                 <SimpleBar className="nicescroll-bar">
                     <div className="menu-content-wrap">
-                        {SidebarMenu.map((routes, index) => (
+                        {visibleMenu.map((routes, index) => (
                             <React.Fragment key={index}>
                                 <div className="menu-group">
                                     {routes.group && <div className="nav-header">
@@ -132,9 +144,9 @@ const Sidebar = ({ navCollapsed, toggleCollapsedNav }) => {
     )
 }
 
-const mapStateToProps = ({ theme }) => {
+const mapStateToProps = ({ theme, auth, permissions }) => {
     const { navCollapsed } = theme;
-    return { navCollapsed }
+    return { navCollapsed, currentUser: auth.currentUser, permissions }
 };
 
 export default connect(mapStateToProps, { toggleCollapsedNav })(Sidebar);

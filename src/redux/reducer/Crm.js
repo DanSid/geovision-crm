@@ -21,6 +21,7 @@ import {
     ADD_MAINTENANCE, UPDATE_MAINTENANCE, DELETE_MAINTENANCE, INIT_MAINTENANCE,
     ADD_REQUEST, UPDATE_REQUEST, DELETE_REQUEST, INIT_REQUESTS,
 } from '../constants/Crm';
+import { loadGlobalPermissions, saveGlobalPermissions, DEFAULT_PERMISSIONS } from '../../utils/permissions';
 
 // ── LocalStorage helpers ──────────────────────────────────────────────────────
 const load = (key, fallback = []) => {
@@ -36,17 +37,9 @@ const save = (key, data) => {
 };
 
 // ── Default permissions ───────────────────────────────────────────────────────
-const defaultPermissions = {
-    dashboard: true, scrumboard: true, contacts: true,
-    opportunities: true, customers: true, calendar: true,
-    tasks: true, accounts: true, settings: true,
-};
-const loadPermissions = () => {
-    try {
-        const d = localStorage.getItem('gv_crm_permissions');
-        return d ? { ...defaultPermissions, ...JSON.parse(d) } : defaultPermissions;
-    } catch { return defaultPermissions; }
-};
+const defaultPermissions = { ...DEFAULT_PERMISSIONS };
+
+const loadPermissions = () => loadGlobalPermissions();
 
 // ── Array CRUD reducer factory ────────────────────────────────────────────────
 const makeArrayReducer = (key, ADD, UPDATE, DELETE, INIT, extra = {}) => {
@@ -181,15 +174,15 @@ export const permissionsReducer = (state = loadPermissions(), action) => {
     switch (action.type) {
         case INIT_PERMISSIONS:
             next = { ...defaultPermissions, ...(action.payload || {}) };
-            save('gv_crm_permissions', next);
+            saveGlobalPermissions(next);
             return next;
         case SET_PERMISSION:
             next = { ...state, [action.payload.key]: action.payload.value };
-            save('gv_crm_permissions', next);
+            saveGlobalPermissions(next);
             return next;
         case RESET_PERMISSIONS:
-            save('gv_crm_permissions', defaultPermissions);
-            return defaultPermissions;
+            saveGlobalPermissions(defaultPermissions);
+            return { ...defaultPermissions };
         default:
             return state;
     }
