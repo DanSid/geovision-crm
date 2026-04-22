@@ -9,57 +9,68 @@ import DragDropCard from './DragDropCard';
 import PipelineHeader from './PipelineHeader';
 import { setPipeline } from '../../../redux/action/Crm';
 
-// Default PRD-aligned pipeline stages (empty — populated by real data)
+// ── Version flag — bump this to force a pipeline layout reset for all users ──
+const PIPELINE_VERSION = 2;
+
+// ── Pipeline columns aligned with Opportunity STAGES ─────────────────────────
 const DEFAULT_DATASET = {
+    version: PIPELINE_VERSION,
     tasks: {},
     cards: {
-        'card-lead':        { id: 'card-lead',        title: 'LEAD IN',     taskIds: [] },
-        'card-opportunity': { id: 'card-opportunity', title: 'OPPORTUNITY',  taskIds: [] },
-        'card-proposed':    { id: 'card-proposed',    title: 'PROPOSED',     taskIds: [] },
-        'card-followup':    { id: 'card-followup',    title: 'FOLLOW UP',    taskIds: [] },
-        'card-conversion':  { id: 'card-conversion',  title: 'CONVERSION',   taskIds: [] },
+        'card-prospecting':   { id: 'card-prospecting',   title: 'PROSPECTING',   taskIds: [] },
+        'card-qualification': { id: 'card-qualification', title: 'QUALIFICATION', taskIds: [] },
+        'card-proposal':      { id: 'card-proposal',      title: 'PROPOSAL',      taskIds: [] },
+        'card-negotiation':   { id: 'card-negotiation',   title: 'NEGOTIATION',   taskIds: [] },
+        'card-closed-won':    { id: 'card-closed-won',    title: 'CLOSED WON',    taskIds: [] },
+        'card-closed-lost':   { id: 'card-closed-lost',   title: 'CLOSED LOST',   taskIds: [] },
     },
-    cardOrder: ['card-lead', 'card-opportunity', 'card-proposed', 'card-followup', 'card-conversion'],
+    cardOrder: [
+        'card-prospecting', 'card-qualification', 'card-proposal',
+        'card-negotiation', 'card-closed-won', 'card-closed-lost',
+    ],
 };
 
-// Map opportunity stage → pipeline column
+// ── Opportunity stage → pipeline column mapping ────────────────────────────────
 const STAGE_CARD_MAP = {
-    'Prospecting':   'card-lead',
-    'Qualification': 'card-opportunity',
-    'Proposal':      'card-proposed',
-    'Negotiation':   'card-followup',
-    'Closed Won':    'card-conversion',
-    'Closed Lost':   'card-conversion',
+    'Prospecting':   'card-prospecting',
+    'Qualification': 'card-qualification',
+    'Proposal':      'card-proposal',
+    'Negotiation':   'card-negotiation',
+    'Closed Won':    'card-closed-won',
+    'Closed Lost':   'card-closed-lost',
 };
 
 const buildDatasetFromOpportunities = (opportunities, existingDataset) => {
-    // Start from stored dataset or default
-    const base = existingDataset || DEFAULT_DATASET;
+    // If stored dataset is old format (no version or wrong version), reset to default
+    const base = (existingDataset && existingDataset.version === PIPELINE_VERSION)
+        ? existingDataset
+        : DEFAULT_DATASET;
 
     // Build a fresh dataset that includes all opportunities as tasks
     const tasks = { ...base.tasks };
     const cards = {};
 
-    // Reset all columns (keep custom columns added by user, reset taskIds for default ones)
+    // Reset all column taskIds (keep columns, clear task assignments)
     base.cardOrder.forEach(cardId => {
         cards[cardId] = { ...base.cards[cardId], taskIds: [] };
     });
 
-    // Insert all opportunities into their matching pipeline column
+    // Insert each opportunity into its matching pipeline column
     opportunities.forEach(opp => {
         const taskId = `opp-${opp.id}`;
-        const targetCardId = STAGE_CARD_MAP[opp.stage] || 'card-lead';
+        const targetCardId = STAGE_CARD_MAP[opp.stage] || 'card-prospecting';
 
-        // Add/update the task
         tasks[taskId] = {
             id: taskId,
             oppId: opp.id,
             brandName: opp.name,
-            price: opp.value ? `$${parseFloat(opp.value).toLocaleString()}` : '',
+            price: opp.dealValue
+                ? `${opp.dealCurrency === 'GHS' ? '₵' : '$'}${parseFloat(opp.dealValue).toLocaleString()}`
+                : opp.value ? `$${parseFloat(opp.value).toLocaleString()}` : '',
             type: opp.company || '',
             contactName: opp.contactName || '',
             stage: opp.stage,
-            lastUsed: opp.closeDate || '',
+            lastUsed: opp.expectedCloseDate || opp.closeDate || '',
             growth: opp.stage === 'Closed Won' ? 'high' : opp.stage === 'Closed Lost' ? 'low' : 'normal',
             status: opp.stage === 'Closed Won' ? 'won' : opp.stage === 'Closed Lost' ? 'lost' : undefined,
             notes: opp.notes || '',
@@ -67,17 +78,15 @@ const buildDatasetFromOpportunities = (opportunities, existingDataset) => {
             logoBg: 'avatar-primary',
         };
 
-        // Add to the target card if not already there
         if (cards[targetCardId] && !cards[targetCardId].taskIds.includes(taskId)) {
             cards[targetCardId].taskIds.push(taskId);
         }
     });
 
-    // Keep any tasks NOT from opportunities (user-manually-added pipeline tasks)
+    // Keep any manually-added pipeline tasks (not from opportunities)
     Object.keys(base.tasks).forEach(tid => {
         if (!tid.startsWith('opp-')) {
             tasks[tid] = base.tasks[tid];
-            // Restore their position in cards
             base.cardOrder.forEach(cardId => {
                 if (base.cards[cardId]?.taskIds.includes(tid)) {
                     if (cards[cardId] && !cards[cardId].taskIds.includes(tid)) {
@@ -88,14 +97,13 @@ const buildDatasetFromOpportunities = (opportunities, existingDataset) => {
         }
     });
 
-    return { tasks, cards, cardOrder: base.cardOrder };
+    return { version: PIPELINE_VERSION, tasks, cards, cardOrder: base.cardOrder };
 };
 
 const PipelineBody = ({ pipelineState, opportunities, setPipeline }) => {
-    const [dataset, setDataset] = useState(() => {
-        // Build from stored pipeline + live opportunities
-        return buildDatasetFromOpportunities(opportunities, pipelineState);
-    });
+    const [dataset] = useState(() =>
+        buildDatasetFromOpportunities(opportunities, pipelineState)
+    );
 
     const [tasks, setTasks] = useState(dataset.tasks);
     const [cards, setCards] = useState(dataset.cards);
@@ -103,9 +111,9 @@ const PipelineBody = ({ pipelineState, opportunities, setPipeline }) => {
     const [addNewBoard, setAddNewBoard] = useState(false);
     const [newBoardName, setNewBoardName] = useState('');
 
-    // Re-sync when opportunities change (new ones added)
+    // Re-sync when opportunities change (stage updates, new additions)
     useEffect(() => {
-        const newDataset = buildDatasetFromOpportunities(opportunities, { tasks, cards, cardOrder });
+        const newDataset = buildDatasetFromOpportunities(opportunities, { version: PIPELINE_VERSION, tasks, cards, cardOrder });
         setTasks(newDataset.tasks);
         setCards(newDataset.cards);
         setCardOrder(newDataset.cardOrder);
@@ -114,7 +122,7 @@ const PipelineBody = ({ pipelineState, opportunities, setPipeline }) => {
 
     // Persist to Redux/localStorage on every change
     useEffect(() => {
-        const snapshot = { tasks, cards, cardOrder };
+        const snapshot = { version: PIPELINE_VERSION, tasks, cards, cardOrder };
         setPipeline(snapshot);
     }, [tasks, cards, cardOrder, setPipeline]);
 
@@ -187,7 +195,7 @@ const PipelineBody = ({ pipelineState, opportunities, setPipeline }) => {
                                         <Form.Label>Stage Name</Form.Label>
                                         <Form.Control
                                             type="text"
-                                            placeholder="e.g. Negotiation"
+                                            placeholder="e.g. Due Diligence"
                                             value={newBoardName}
                                             onChange={e => setNewBoardName(e.target.value)}
                                             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onAddNewCard(); } }}

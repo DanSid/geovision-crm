@@ -134,7 +134,7 @@ const ContactActionBar = ({
                 ACTION BAR
             ═══════════════════════════════════════════════════════════════ */}
             <div
-                className="border-bottom bg-white"
+                className="border-bottom bg-body"
                 style={{ padding: '10px 16px', flexShrink: 0 }}
             >
                 {/* ── Row 1: Title · contact name · pagination · view toggle · create ── */}
@@ -142,7 +142,7 @@ const ContactActionBar = ({
 
                     {/* Left: title + contact nav */}
                     <div className="d-flex align-items-center gap-2 flex-wrap">
-                        <span className="fw-bold fs-5 text-dark">Contacts</span>
+                        <span className="fw-bold fs-5 text-body">Contacts</span>
 
                         {contact && (
                             <>

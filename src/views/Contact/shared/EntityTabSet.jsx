@@ -82,7 +82,7 @@ const EntityTabSet = ({ entityType, entityId, contactName, extraTabs = [], defau
     return (
         <Tab.Container defaultActiveKey={defaultTab}>
             {/* ── Tab nav ── */}
-            <div className="border-bottom mb-0" style={{ background: '#fff' }}>
+            <div className="border-bottom mb-0 bg-body">
                 <Nav
                     variant="tabs"
                     className="nav-light flex-nowrap"

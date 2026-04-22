@@ -25,11 +25,11 @@ const ContactPickerPanel = ({ contacts = [], selectedId, onSelect }) => {
 
     return (
         <div
-            className="d-flex flex-column border-end bg-white"
+            className="d-flex flex-column border-end bg-body"
             style={{ width: 260, minWidth: 260, maxWidth: 260, height: '100%' }}
         >
             {/* Header */}
-            <div className="px-3 py-2 border-bottom" style={{ background: '#f8f9fa' }}>
+            <div className="px-3 py-2 border-bottom bg-body-secondary">
                 <div className="fw-semibold fs-7 text-muted mb-2">
                     {contacts.length} contact{contacts.length !== 1 ? 's' : ''}
                 </div>
@@ -86,7 +86,7 @@ const ContactPickerPanel = ({ contacts = [], selectedId, onSelect }) => {
                             <div style={{ minWidth: 0 }}>
                                 <div
                                     className="fw-medium text-truncate"
-                                    style={{ fontSize: 13, color: isSelected ? '#4f46e5' : '#111827' }}
+                                    style={{ fontSize: 13, color: isSelected ? '#4f46e5' : 'var(--bs-body-color)' }}
                                 >
                                     {name}
                                 </div>

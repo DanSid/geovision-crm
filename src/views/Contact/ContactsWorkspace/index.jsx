@@ -10,7 +10,7 @@ import ContactDetailTopPanels from '../ContactDetail/ContactDetailTopPanels';
 import EntityTabSet from '../shared/EntityTabSet';
 import SecondaryContactsTab from '../ContactDetail/tabs/SecondaryContactsTab';
 
-import { addContact, updateContact, deleteContact, addCustomer } from '../../../redux/action/Crm';
+import { addContact, updateContact, deleteContact, addCustomer, updateCustomer } from '../../../redux/action/Crm';
 import { getContactName } from '../../../utils/contactWorkspace';
 
 /* ── Blank new-contact form ─────────────────────────────────────────────── */
@@ -22,7 +22,7 @@ const EMPTY = {
 };
 
 /* ── ContactsWorkspace ──────────────────────────────────────────────────── */
-const ContactsWorkspace = ({ contacts: allContacts = [], addContact, updateContact, deleteContact, addCustomer }) => {
+const ContactsWorkspace = ({ contacts: allContacts = [], customers = [], addContact, updateContact, deleteContact, addCustomer, updateCustomer }) => {
 
     /* ── Sorted visible list ── */
     const contacts = useMemo(() =>
@@ -95,12 +95,31 @@ const ContactsWorkspace = ({ contacts: allContacts = [], addContact, updateConta
             createdAt: form.createdAt || new Date().toISOString(),
         };
 
+        const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+
         if (editingContact) {
             updateContact({ ...editingContact, ...payload });
+
+            // ── Sync matching customer record ──────────────────────────────
+            const editId = editingContact.id || editingContact._id;
+            const matchingCustomer = customers.find(c =>
+                c.contactId === editId ||
+                (c.email && c.email === editingContact.email)
+            );
+            if (matchingCustomer) {
+                updateCustomer({
+                    ...matchingCustomer,
+                    name: fullName,
+                    email: payload.email,
+                    phone: payload.phone || matchingCustomer.phone || '',
+                    company: payload.company || matchingCustomer.company || '',
+                });
+            }
         } else {
             addContact(payload);
+            // ── Create linked customer record ──────────────────────────────
             addCustomer({
-                name: `${payload.firstName} ${payload.lastName}`.trim(),
+                name: fullName,
                 email: payload.email,
                 phone: payload.phone || '',
                 company: payload.company || '',
@@ -371,5 +390,5 @@ const ContactsWorkspace = ({ contacts: allContacts = [], addContact, updateConta
     );
 };
 
-const mapStateToProps = ({ contacts }) => ({ contacts });
-export default connect(mapStateToProps, { addContact, updateContact, deleteContact, addCustomer })(ContactsWorkspace);
+const mapStateToProps = ({ contacts, customers }) => ({ contacts, customers });
+export default connect(mapStateToProps, { addContact, updateContact, deleteContact, addCustomer, updateCustomer })(ContactsWorkspace);

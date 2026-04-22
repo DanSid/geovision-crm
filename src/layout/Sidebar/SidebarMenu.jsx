@@ -18,27 +18,22 @@ export const SidebarMenu = [
         group: 'Sales',
         contents: [
             {
-                id: 'dash_contacts',
                 name: 'Contacts',
                 icon: <Icons.Notebook />,
-                path: '/apps/contacts',
-                childrens: [
-                    {
-                        name: 'Contact List',
-                        path: '/apps/contacts/contact-list',
-                        grp_name: 'sales',
-                    },
-                    {
-                        name: 'Companies',
-                        path: '/apps/contacts/companies',
-                        grp_name: 'sales',
-                    },
-                    {
-                        name: 'Groups',
-                        path: '/apps/contacts/groups',
-                        grp_name: 'sales',
-                    },
-                ]
+                path: '/apps/contacts/contact-list',
+                grp_name: 'sales',
+            },
+            {
+                name: 'Companies',
+                icon: <Icons.Building />,
+                path: '/apps/contacts/companies',
+                grp_name: 'sales',
+            },
+            {
+                name: 'Groups',
+                icon: <Icons.Users />,
+                path: '/apps/contacts/groups',
+                grp_name: 'sales',
             },
             {
                 name: 'Calendar',
@@ -64,96 +59,99 @@ export const SidebarMenu = [
                 path: '/apps/taskboard/pipeline',
                 grp_name: 'sales',
             },
+        ]
+    },
+
+    // ── Accounts ──────────────────────────────────────────────────────────────
+    {
+        group: 'Accounts',
+        contents: [
             {
-                name: 'Customers',
-                icon: <Icons.Users />,
-                path: '/apps/customers',
-                grp_name: 'sales',
-            },
-            {
-                id: 'dash_accounts',
-                name: 'Accounts',
+                name: 'Invoice List',
                 icon: <Icons.FileDigit />,
-                path: '/apps/accounts',
-                childrens: [
-                    {
-                        name: 'Invoice List',
-                        path: '/apps/accounts/invoice-list',
-                        grp_name: 'sales',
-                    },
-                    {
-                        name: 'Invoice Templates',
-                        path: '/apps/accounts/invoice-templates',
-                        grp_name: 'sales',
-                    },
-                    {
-                        name: 'Create Invoice',
-                        path: '/apps/accounts/create-invoice',
-                        grp_name: 'sales',
-                    },
-                    {
-                        name: 'Invoice Preview',
-                        path: '/apps/accounts/invoice-preview',
-                        grp_name: 'sales',
-                    },
-                ]
+                path: '/apps/accounts/invoice-list',
+                grp_name: 'accounts',
             },
             {
-                id: 'dash_logistics',
-                name: 'Logistics',
-                icon: <Icons.Package />,
-                path: '/apps/logistics',
+                name: 'Invoice Templates',
+                icon: <Icons.LayoutGrid />,
+                path: '/apps/accounts/invoice-templates',
+                grp_name: 'accounts',
+            },
+            {
+                name: 'Create Invoice',
+                icon: <Icons.FilePlus />,
+                path: '/apps/accounts/create-invoice',
+                grp_name: 'accounts',
+            },
+            {
+                name: 'Invoice Preview',
+                icon: <Icons.Eye />,
+                path: '/apps/accounts/invoice-preview',
+                grp_name: 'accounts',
+            },
+        ]
+    },
+
+    // ── Logistics ─────────────────────────────────────────────────────────────
+    {
+        group: 'Logistics',
+        contents: [
+            {
+                name: 'Requests',
+                icon: <Icons.ClipboardList />,
+                path: '/apps/logistics/requests',
+                grp_name: 'logistics',
+            },
+            {
+                name: 'Equipment',
+                icon: <Icons.Tool />,
+                path: '/apps/logistics/equipment',
+                grp_name: 'logistics',
+            },
+            {
+                name: 'Stock Locations',
+                icon: <Icons.MapPin />,
+                path: '/apps/logistics/stock-locations',
+                grp_name: 'logistics',
+            },
+            {
+                name: 'Crew Members',
+                icon: <Icons.UserCheck />,
+                path: '/apps/logistics/crew-members',
+                grp_name: 'logistics',
+            },
+            {
+                name: 'Vehicles',
+                icon: <Icons.Car />,
+                path: '/apps/logistics/vehicles',
+                grp_name: 'logistics',
+            },
+            {
+                id: 'dash_logistics_maintenance',
+                name: 'Maintenance',
+                icon: <Icons.Wrench />,
+                path: '/apps/logistics/maintenance',
                 childrens: [
                     {
-                        name: 'Requests',
-                        path: '/apps/logistics/requests',
-                        grp_name: 'sales',
+                        name: 'Repairs',
+                        path: '/apps/logistics/maintenance/repairs',
+                        grp_name: 'logistics',
                     },
                     {
-                        name: 'Equipment',
-                        path: '/apps/logistics/equipment',
-                        grp_name: 'sales',
+                        name: 'Inspections',
+                        path: '/apps/logistics/maintenance/inspections',
+                        grp_name: 'logistics',
                     },
                     {
-                        name: 'Stock Locations',
-                        path: '/apps/logistics/stock-locations',
-                        grp_name: 'sales',
+                        name: 'Lost Equipment',
+                        path: '/apps/logistics/maintenance/lost-equipment',
+                        grp_name: 'logistics',
                     },
                     {
-                        name: 'Crew Members',
-                        path: '/apps/logistics/crew-members',
-                        grp_name: 'sales',
-                    },
-                    {
-                        name: 'Vehicles',
-                        path: '/apps/logistics/vehicles',
-                        grp_name: 'sales',
-                    },
-                    {
-                        id: 'dash_logistics_maintenance',
-                        name: 'Maintenance',
-                        childrens: [
-                            {
-                                name: 'Repairs',
-                                path: '/apps/logistics/maintenance/repairs',
-                                grp_name: 'sales',
-                            },
-                            {
-                                name: 'Inspections',
-                                path: '/apps/logistics/maintenance/inspections',
-                                grp_name: 'sales',
-                            },
-                            {
-                                name: 'Lost Equipment',
-                                path: '/apps/logistics/maintenance/lost-equipment',
-                                grp_name: 'sales',
-                            },
-                            {
-                                name: 'Inventory Counts',
-                                path: '/apps/logistics/maintenance/inventory-counts',
-                                grp_name: 'sales',
-                            },
-                        ]
+                        name: 'Inventory Counts',
+                        path: '/apps/logistics/maintenance/inventory-counts',
+                        grp_name: 'logistics',
                     },
                 ]
             },
