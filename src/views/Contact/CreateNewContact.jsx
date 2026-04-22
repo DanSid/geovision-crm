@@ -23,7 +23,7 @@ const CreateNewContact = ({ show, close }) => {
                             {/* </div> */}
                         </Col>
                         <Col sm={10} as={Form.Group}>
-                            <Form.Control as="textarea" className="mnh-100p" rows={4} placeholder="Add Biography" />
+                            <Form.Control as="textarea" className="mnh-100p" rows={4} placeholder="Brief Narrative about the Client" />
                         </Col>
                     </Row>
                     <div className="title title-xs title-wth-divider text-primary text-uppercase my-4">

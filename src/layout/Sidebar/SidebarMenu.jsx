@@ -1,6 +1,7 @@
 import * as Icons from 'tabler-icons-react';
 
 export const SidebarMenu = [
+    // ── Dashboard ─────────────────────────────────────────────────────────────
     {
         group: '',
         contents: [
@@ -11,34 +12,13 @@ export const SidebarMenu = [
             },
         ]
     },
+
+    // ── Sales ─────────────────────────────────────────────────────────────────
     {
-        group: 'CRM',
+        group: 'Sales',
         contents: [
             {
-                id: 'dash_scrumboard',
-                name: 'Scrumboard',
-                icon: <Icons.LayoutKanban />,
-                path: '/apps/taskboard',
-                childrens: [
-                    {
-                        name: 'Kanban Board',
-                        path: '/apps/taskboard/kanban-board',
-                        grp_name: 'crm',
-                    },
-                    {
-                        name: 'Summary',
-                        path: '/apps/taskboard/summary',
-                        grp_name: 'crm',
-                    },
-                    {
-                        name: 'Pipeline',
-                        path: '/apps/taskboard/pipeline',
-                        grp_name: 'crm',
-                    },
-                ]
-            },
-            {
-                id: 'dash_contact',
+                id: 'dash_contacts',
                 name: 'Contacts',
                 icon: <Icons.Notebook />,
                 path: '/apps/contacts',
@@ -46,83 +26,17 @@ export const SidebarMenu = [
                     {
                         name: 'Contact List',
                         path: '/apps/contacts/contact-list',
-                        grp_name: 'crm',
+                        grp_name: 'sales',
                     },
                     {
-                        name: 'Contact Cards',
-                        path: '/apps/contacts/contact-cards',
-                        grp_name: 'crm',
-                    },
-                ]
-            },
-            {
-                name: 'Opportunities',
-                icon: <Icons.ArrowUpCircle />,
-                path: '/apps/opportunities',
-                grp_name: 'crm',
-            },
-            {
-                name: 'Customers',
-                icon: <Icons.Users />,
-                path: '/apps/customers',
-                grp_name: 'crm',
-            },
-            {
-                id: 'dash_logistics',
-                name: 'Logistics',
-                icon: <Icons.Package />,
-                path: '/apps/logistics',
-                childrens: [
-                    {
-                        name: 'Requests',
-                        path: '/apps/logistics/requests',
-                        grp_name: 'crm',
+                        name: 'Companies',
+                        path: '/apps/contacts/companies',
+                        grp_name: 'sales',
                     },
                     {
-                        name: 'Equipment',
-                        path: '/apps/logistics/equipment',
-                        grp_name: 'crm',
-                    },
-                    {
-                        name: 'Stock Locations',
-                        path: '/apps/logistics/stock-locations',
-                        grp_name: 'crm',
-                    },
-                    {
-                        name: 'Crew Members',
-                        path: '/apps/logistics/crew-members',
-                        grp_name: 'crm',
-                    },
-                    {
-                        name: 'Vehicles',
-                        path: '/apps/logistics/vehicles',
-                        grp_name: 'crm',
-                    },
-                    {
-                        id: 'dash_logistics_maintenance',
-                        name: 'Maintenance',
-                        childrens: [
-                            {
-                                name: 'Repairs',
-                                path: '/apps/logistics/maintenance/repairs',
-                                grp_name: 'crm',
-                            },
-                            {
-                                name: 'Inspections',
-                                path: '/apps/logistics/maintenance/inspections',
-                                grp_name: 'crm',
-                            },
-                            {
-                                name: 'Lost Equipment',
-                                path: '/apps/logistics/maintenance/lost-equipment',
-                                grp_name: 'crm',
-                            },
-                            {
-                                name: 'Inventory Counts',
-                                path: '/apps/logistics/maintenance/inventory-counts',
-                                grp_name: 'crm',
-                            },
-                        ]
+                        name: 'Groups',
+                        path: '/apps/contacts/groups',
+                        grp_name: 'sales',
                     },
                 ]
             },
@@ -130,25 +44,31 @@ export const SidebarMenu = [
                 name: 'Calendar',
                 icon: <Icons.CalendarTime />,
                 path: '/apps/calendar',
-                grp_name: 'crm',
+                grp_name: 'sales',
             },
             {
-                id: 'dash_tasks',
-                name: 'Tasks',
-                icon: <Icons.ListDetails />,
-                path: '/apps/tasks',
-                childrens: [
-                    {
-                        name: 'Task List',
-                        path: '/apps/tasks/task-list',
-                        grp_name: 'crm',
-                    },
-                    {
-                        name: 'Gantt',
-                        path: '/apps/tasks/gantt',
-                        grp_name: 'crm',
-                    },
-                ]
+                name: 'Opportunities',
+                icon: <Icons.ArrowUpCircle />,
+                path: '/apps/opportunities',
+                grp_name: 'sales',
+            },
+            {
+                name: 'Summary',
+                icon: <Icons.ChartBar />,
+                path: '/apps/taskboard/summary',
+                grp_name: 'sales',
+            },
+            {
+                name: 'Pipeline',
+                icon: <Icons.LayoutColumns />,
+                path: '/apps/taskboard/pipeline',
+                grp_name: 'sales',
+            },
+            {
+                name: 'Customers',
+                icon: <Icons.Users />,
+                path: '/apps/customers',
+                grp_name: 'sales',
             },
             {
                 id: 'dash_accounts',
@@ -159,27 +79,119 @@ export const SidebarMenu = [
                     {
                         name: 'Invoice List',
                         path: '/apps/accounts/invoice-list',
-                        grp_name: 'crm',
+                        grp_name: 'sales',
                     },
                     {
                         name: 'Invoice Templates',
                         path: '/apps/accounts/invoice-templates',
-                        grp_name: 'crm',
+                        grp_name: 'sales',
                     },
                     {
                         name: 'Create Invoice',
                         path: '/apps/accounts/create-invoice',
-                        grp_name: 'crm',
+                        grp_name: 'sales',
                     },
                     {
                         name: 'Invoice Preview',
                         path: '/apps/accounts/invoice-preview',
-                        grp_name: 'crm',
+                        grp_name: 'sales',
+                    },
+                ]
+            },
+            {
+                id: 'dash_logistics',
+                name: 'Logistics',
+                icon: <Icons.Package />,
+                path: '/apps/logistics',
+                childrens: [
+                    {
+                        name: 'Requests',
+                        path: '/apps/logistics/requests',
+                        grp_name: 'sales',
+                    },
+                    {
+                        name: 'Equipment',
+                        path: '/apps/logistics/equipment',
+                        grp_name: 'sales',
+                    },
+                    {
+                        name: 'Stock Locations',
+                        path: '/apps/logistics/stock-locations',
+                        grp_name: 'sales',
+                    },
+                    {
+                        name: 'Crew Members',
+                        path: '/apps/logistics/crew-members',
+                        grp_name: 'sales',
+                    },
+                    {
+                        name: 'Vehicles',
+                        path: '/apps/logistics/vehicles',
+                        grp_name: 'sales',
+                    },
+                    {
+                        id: 'dash_logistics_maintenance',
+                        name: 'Maintenance',
+                        childrens: [
+                            {
+                                name: 'Repairs',
+                                path: '/apps/logistics/maintenance/repairs',
+                                grp_name: 'sales',
+                            },
+                            {
+                                name: 'Inspections',
+                                path: '/apps/logistics/maintenance/inspections',
+                                grp_name: 'sales',
+                            },
+                            {
+                                name: 'Lost Equipment',
+                                path: '/apps/logistics/maintenance/lost-equipment',
+                                grp_name: 'sales',
+                            },
+                            {
+                                name: 'Inventory Counts',
+                                path: '/apps/logistics/maintenance/inventory-counts',
+                                grp_name: 'sales',
+                            },
+                        ]
                     },
                 ]
             },
         ]
     },
+
+    // ── Jira ──────────────────────────────────────────────────────────────────
+    {
+        group: 'Jira',
+        contents: [
+            {
+                id: 'dash_tasks',
+                name: 'Tasks',
+                icon: <Icons.ListDetails />,
+                path: '/apps/tasks',
+                childrens: [
+                    {
+                        name: 'Task List',
+                        path: '/apps/tasks/task-list',
+                        grp_name: 'jira',
+                    },
+                    {
+                        name: 'Gantt',
+                        path: '/apps/tasks/gantt',
+                        grp_name: 'jira',
+                    },
+                ]
+            },
+            {
+                name: 'Kanban Board',
+                icon: <Icons.LayoutKanban />,
+                path: '/apps/taskboard/kanban-board',
+                grp_name: 'jira',
+            },
+        ]
+    },
+
+    // ── Account ───────────────────────────────────────────────────────────────
     {
         group: 'Account',
         contents: [
@@ -194,11 +206,6 @@ export const SidebarMenu = [
                         path: '/pages/profile',
                         grp_name: 'account',
                     },
-                    // {
-                    //     name: 'Edit Profile',
-                    //     path: '/pages/edit-profile',
-                    //     grp_name: 'account',
-                    // },
                 ]
             },
             {

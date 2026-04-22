@@ -10,6 +10,7 @@ import ContactCompanies from "../views/Contact/Companies";
 import ContactDetail from "../views/Contact/ContactDetail";
 import ContactGroups from "../views/Contact/Groups";
 import ContactList from "../views/Contact/ContactList";
+import ContactsWorkspace from "../views/Contact/ContactsWorkspace";
 import EditContact from "../views/Contact/EditContact";
 import Dashboard from "../views/Dashboard";
 import Email from "../views/Email";
@@ -85,7 +86,8 @@ export const routes = [
     { path: 'apps/logistics/maintenance/inspections', exact: true, component: Inspections },
     { path: 'apps/logistics/maintenance/lost-equipment', exact: true, component: LostEquipment },
     { path: 'apps/logistics/maintenance/inventory-counts', exact: true, component: InventoryCounts },
-    { path: 'apps/contacts/contact-list', exact: true, component: ContactList },
+    { path: 'apps/contacts/contact-list', exact: true, component: ContactsWorkspace },
+    { path: 'apps/contacts/contact-list-classic', exact: true, component: ContactList },
     { path: 'apps/contacts/contact-cards', exact: true, component: ContactCards },
     { path: 'apps/contacts/companies', exact: true, component: ContactCompanies },
     { path: 'apps/contacts/groups', exact: true, component: ContactGroups },
