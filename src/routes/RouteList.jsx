@@ -45,6 +45,9 @@ import Customers from "../views/Customers";
 import Settings from "../views/Settings";
 import JiraCalendar from "../views/JiraCalendar";
 import LogisticsCalendar from "../views/LogisticsCalendar";
+import JiraReport from "../views/JiraReport";
+import LogisticsReport from "../views/LogisticsReport";
+import FinanceReport from "../views/FinanceReport";
 //Pages
 import Profile from "../views/Profiles/Profile";
 import EditProfile from "../views/Profiles/EditProfile";
@@ -103,6 +106,10 @@ export const routes = [
     { path: 'apps/tasks/gantt', exact: true, component: Gantt },
     { path: 'apps/jira/calendar', exact: true, component: JiraCalendar },
     { path: 'apps/logistics/calendar', exact: true, component: LogisticsCalendar },
+    { path: 'apps/jira/report',        exact: true, component: JiraReport        },
+    { path: 'apps/logistics/report',   exact: true, component: LogisticsReport   },
+    { path: 'apps/finance/report',     exact: true, component: FinanceReport     },
+    { path: 'apps/sales/report',       exact: true, component: KanbanSummary     },
     // Keep old todo paths for backwards compat
     { path: 'apps/todo/task-list', exact: true, component: TaskList },
     { path: 'apps/todo/gantt', exact: true, component: Gantt },

@@ -3,7 +3,7 @@ import { Button, Dropdown, Form, Modal } from 'react-bootstrap';
 import { connect } from 'react-redux';
 import {
     ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight,
-    List, Layout, Mail, Clock, FileText, CheckSquare, Calendar, Phone, Plus,
+    List, Layout, Mail, Clock, FileText, CheckSquare, Calendar, Phone, Plus, Save,
 } from 'react-feather';
 import { getContactName } from '../../../utils/contactWorkspace';
 import { addNote, addTask, addActivity, addHistoryEntry } from '../../../redux/action/Crm';
@@ -34,6 +34,9 @@ const ContactActionBar = ({
     viewMode,
     onViewModeChange,
     onCreateContact,
+    onSaveInline,
+    onDeleteContact,
+    isDirty,
     /* Redux actions */
     addNote,
     addTask,
@@ -177,14 +180,14 @@ const ContactActionBar = ({
                         )}
                     </div>
 
-                    {/* Right: view toggle + create new */}
+                    {/* Right: view toggle + save + create new */}
                     <div className="d-flex align-items-center gap-2">
                         <div className="btn-group" role="group" aria-label="View mode">
                             <Button
                                 size="sm"
                                 variant={viewMode === 'list' ? 'primary' : 'outline-secondary'}
                                 className="d-flex align-items-center gap-1"
-                                title="List View — show contacts list alongside detail"
+                                title="List View — full-width contact table"
                                 onClick={() => onViewModeChange('list')}
                             >
                                 <List size={13} /> List View
@@ -193,12 +196,25 @@ const ContactActionBar = ({
                                 size="sm"
                                 variant={viewMode === 'detail' ? 'primary' : 'outline-secondary'}
                                 className="d-flex align-items-center gap-1"
-                                title="Detail View — full-width contact detail"
+                                title="Detail View — editable contact form"
                                 onClick={() => onViewModeChange('detail')}
                             >
                                 <Layout size={13} /> Detail View
                             </Button>
                         </div>
+
+                        {/* Save button — visible when there are unsaved inline changes */}
+                        {isDirty && (
+                            <Button
+                                size="sm"
+                                variant="success"
+                                className="d-flex align-items-center gap-1"
+                                onClick={onSaveInline}
+                                title="Save changes to this contact"
+                            >
+                                <Save size={13} /> Save
+                            </Button>
+                        )}
 
                         <Dropdown>
                             <Dropdown.Toggle size="sm" variant="primary" className="d-flex align-items-center gap-1">
@@ -254,14 +270,18 @@ const ContactActionBar = ({
                             Contact Actions
                         </Dropdown.Toggle>
                         <Dropdown.Menu>
-                            <Dropdown.Item disabled={!hasContact}>
+                            <Dropdown.Item
+                                disabled={!hasContact}
+                                onClick={() => onViewModeChange('detail')}
+                            >
                                 <i className="ri-edit-line me-2" />Edit Contact
                             </Dropdown.Item>
-                            <Dropdown.Item disabled={!hasContact}>
-                                <i className="ri-archive-line me-2" />Archive Contact
-                            </Dropdown.Item>
                             <Dropdown.Divider />
-                            <Dropdown.Item className="text-danger" disabled={!hasContact}>
+                            <Dropdown.Item
+                                className="text-danger"
+                                disabled={!hasContact}
+                                onClick={() => onDeleteContact && onDeleteContact(contact)}
+                            >
                                 <i className="ri-delete-bin-line me-2" />Delete Contact
                             </Dropdown.Item>
                         </Dropdown.Menu>

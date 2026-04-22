@@ -54,6 +54,12 @@ export const SidebarMenu = [
                 grp_name: 'sales',
             },
             {
+                name: 'Summary',
+                icon: <Icons.ChartPie />,
+                path: '/apps/sales/report',
+                grp_name: 'sales',
+            },
+            {
                 name: 'Pipeline',
                 icon: <Icons.LayoutColumns />,
                 path: '/apps/taskboard/pipeline',
@@ -96,6 +102,12 @@ export const SidebarMenu = [
                 path: '/apps/jira/calendar',
                 grp_name: 'jira',
             },
+            {
+                name: 'Report',
+                icon: <Icons.ReportAnalytics />,
+                path: '/apps/jira/report',
+                grp_name: 'jira',
+            },
         ]
     },
 
@@ -113,6 +125,12 @@ export const SidebarMenu = [
                 name: 'Calendar',
                 icon: <Icons.CalendarEvent />,
                 path: '/apps/logistics/calendar',
+                grp_name: 'logistics',
+            },
+            {
+                name: 'Report',
+                icon: <Icons.ChartInfographic />,
+                path: '/apps/logistics/report',
                 grp_name: 'logistics',
             },
             {
@@ -196,6 +214,12 @@ export const SidebarMenu = [
                 name: 'Invoice Preview',
                 icon: <Icons.Eye />,
                 path: '/apps/accounts/invoice-preview',
+                grp_name: 'accounts',
+            },
+            {
+                name: 'Report',
+                icon: <Icons.ChartPie />,
+                path: '/apps/finance/report',
                 grp_name: 'accounts',
             },
         ]
