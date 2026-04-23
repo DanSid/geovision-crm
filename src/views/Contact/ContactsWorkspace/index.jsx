@@ -124,7 +124,24 @@ const ContactsWorkspace = ({
     /* ── Sync inlineForm when selected contact changes ── */
     useEffect(() => {
         if (selectedContact) {
-            setInlineForm({ ...EMPTY, ...selectedContact });
+            let base = { ...EMPTY, ...selectedContact };
+
+            // ── Migration: legacy contacts stored as { name: "First Last" } ──
+            // If firstName is blank but the old `name` field has content, split it.
+            if (!base.firstName && (base.name || base.fullName)) {
+                const parts = (base.name || base.fullName || '').trim().split(/\s+/);
+                base.firstName = parts[0] || '';
+                base.lastName  = parts.slice(1).join(' ') || '';
+            }
+
+            // ── Migration: workPhone shouldn't mirror phone if user never set it ──
+            // Old addContact code used to copy phone → workPhone; clear if identical
+            // and the contact never explicitly saved a workPhone value.
+            if (base.workPhone && base.workPhone === base.phone && !selectedContact.workPhone) {
+                base.workPhone = '';
+            }
+
+            setInlineForm(base);
         } else {
             setInlineForm(null);
         }

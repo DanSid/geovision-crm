@@ -86,7 +86,7 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect }) => {
 
     /* ── Cell renderer ── */
     const cell = (value, isEmail = false, contact = null) => {
-        if (!value) return <span style={{ color: '#9ca3af' }}>—</span>;
+        if (!value) return <span style={{ color: 'var(--bs-secondary-color, #9ca3af)' }}>—</span>;
         if (isEmail) return (
             <a
                 href={`mailto:${value}`}
@@ -205,7 +205,7 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect }) => {
                                             : <span style={{ color: '#9ca3af' }}>—</span>}
                                     </td>
                                     <td>
-                                        <span style={{ fontWeight: sel ? 600 : 400, color: sel ? '#4f46e5' : 'inherit' }}>
+                                        <span style={{ fontWeight: sel ? 600 : 400, color: sel ? 'var(--bs-primary, #4f46e5)' : 'var(--bs-body-color)' }}>
                                             {contact._name}
                                         </span>
                                     </td>

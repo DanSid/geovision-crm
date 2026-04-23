@@ -58,8 +58,13 @@ const ContactPickerPanel = ({ contacts = [], selectedId, onSelect }) => {
                             onClick={() => onSelect(contact)}
                             style={{
                                 cursor: 'pointer',
-                                background: isSelected ? '#eef2ff' : 'transparent',
-                                borderLeft: isSelected ? '3px solid #4f46e5' : '3px solid transparent',
+                                // Semi-transparent so it adapts to both light AND dark mode
+                                background: isSelected
+                                    ? 'rgba(79, 70, 229, 0.14)'
+                                    : 'transparent',
+                                borderLeft: isSelected
+                                    ? '3px solid var(--bs-primary, #4f46e5)'
+                                    : '3px solid transparent',
                                 transition: 'background 0.12s',
                             }}
                             className="d-flex align-items-center gap-2 px-3 py-2 border-bottom"
@@ -73,7 +78,7 @@ const ContactPickerPanel = ({ contacts = [], selectedId, onSelect }) => {
                                     minWidth: 34,
                                     borderRadius: '50%',
                                     fontSize: 11,
-                                    background: isSelected ? '#4f46e5' : avatarColor(id),
+                                    background: isSelected ? 'var(--bs-primary, #4f46e5)' : avatarColor(id),
                                     overflow: 'hidden',
                                 }}
                             >
@@ -84,13 +89,27 @@ const ContactPickerPanel = ({ contacts = [], selectedId, onSelect }) => {
 
                             {/* Info */}
                             <div style={{ minWidth: 0 }}>
+                                {/* Name — always uses body colour so it's readable in dark & light mode */}
                                 <div
-                                    className="fw-medium text-truncate"
-                                    style={{ fontSize: 13, color: isSelected ? '#4f46e5' : 'var(--bs-body-color)' }}
+                                    className="text-truncate"
+                                    style={{
+                                        fontSize: 13,
+                                        fontWeight: isSelected ? 600 : 500,
+                                        color: isSelected
+                                            ? 'var(--bs-primary, #4f46e5)'
+                                            : 'var(--bs-body-color)',
+                                    }}
                                 >
                                     {name}
                                 </div>
-                                <div className="text-muted text-truncate" style={{ fontSize: 11 }}>
+                                {/* Company / email — use an explicit muted-text variable that works in both modes */}
+                                <div
+                                    className="text-truncate"
+                                    style={{
+                                        fontSize: 11,
+                                        color: 'var(--bs-secondary-color, #6c757d)',
+                                    }}
+                                >
                                     {contact.company || contact.email || '—'}
                                 </div>
                             </div>
@@ -99,7 +118,12 @@ const ContactPickerPanel = ({ contacts = [], selectedId, onSelect }) => {
                             {isSelected && (
                                 <div
                                     className="ms-auto flex-shrink-0"
-                                    style={{ width: 7, height: 7, borderRadius: '50%', background: '#4f46e5' }}
+                                    style={{
+                                        width: 7,
+                                        height: 7,
+                                        borderRadius: '50%',
+                                        background: 'var(--bs-primary, #4f46e5)',
+                                    }}
                                 />
                             )}
                         </div>
