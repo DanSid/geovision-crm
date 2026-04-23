@@ -2,11 +2,13 @@ const { Router } = require('express');
 
 /**
  * Creates standard CRUD routes for a Mongoose model.
- * GET    /          → list all (sorted newest first)
- * GET    /:id       → get one
- * POST   /          → create
- * PUT    /:id       → update (partial)
- * DELETE /:id       → delete
+ *
+ * GET    /      → list all (newest first)
+ * GET    /:id   → get one
+ * POST   /      → create
+ * PUT    /:id   → partial update ($set — strips _id/__v, strict:false so
+ *                 extra fields aren't silently dropped by Mongoose)
+ * DELETE /:id   → delete
  */
 const crudRouter = (Model) => {
     const router = Router();
@@ -36,13 +38,21 @@ const crudRouter = (Model) => {
         } catch (err) { next(err); }
     });
 
-    // UPDATE
+    // UPDATE (partial — $set semantics)
     router.put('/:id', async (req, res, next) => {
         try {
+            // Remove Mongoose-internal fields the client may echo back
+            // eslint-disable-next-line no-unused-vars
+            const { _id, __v, id: _clientId, ...body } = req.body;
+
             const doc = await Model.findByIdAndUpdate(
                 req.params.id,
-                req.body,
-                { new: true, runValidators: true }
+                { $set: body },
+                {
+                    new:           true,   // return updated doc
+                    runValidators: false,  // skip validators on partial update
+                    strict:        false,  // allow fields not in schema (future-proofing)
+                }
             );
             if (!doc) return res.status(404).json({ error: 'Not found' });
             res.json(doc);
