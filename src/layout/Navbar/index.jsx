@@ -94,44 +94,51 @@ const CompactNav = ({
     const currentAlert = alertQueue[0] || null;
     const dismissAlert = () => setAlertQueue(prev => prev.slice(1));
 
-    /* ── Check for due activities (on mount + every 60 s) ── */
-    const activitiesRef = useRef(activities);
-    activitiesRef.current = activities;
+    /* ── isDue: true when an activity's scheduled time has arrived (within last 90 min) ── */
+    const isDue = (a) => {
+        const dateVal = a.date;
+        if (!dateVal) return false;
+        let dt;
+        try {
+            const s = String(dateVal);
+            if (s.includes('T'))  dt = new Date(s);
+            else if (a.time)      dt = new Date(`${s}T${a.time}`);
+            else                  return false; // date-only, no specific time
+            if (isNaN(dt))        return false;
+        } catch { return false; }
+        const diffMs = Date.now() - dt.getTime();
+        return diffMs >= 0 && diffMs <= 90 * 60 * 1000; // within last 90 minutes
+    };
+
+    /* ── checkDueActivities: called on every activities change AND every 60 s ── */
+    const checkRef = useRef(null);
 
     useEffect(() => {
-        const isDue = (a) => {
-            const dateVal = a.date;
-            if (!dateVal) return false;
-            let dt;
-            try {
-                if (dateVal.includes('T'))      dt = new Date(dateVal);
-                else if (a.time)                dt = new Date(`${dateVal}T${a.time}`);
-                else                            return false; // no specific time → no popup
-                if (isNaN(dt)) return false;
-            } catch { return false; }
-            const diffMs = Date.now() - dt.getTime();
-            // Due within the last 60 minutes (catches page-load near schedule time)
-            return diffMs >= 0 && diffMs <= 60 * 60 * 1000;
-        };
-
-        const check = () => {
+        checkRef.current = () => {
             const alerted = getAlerted();
-            const newAlerts = activitiesRef.current.filter(a => {
-                if (a.completed) return false;
-                if (!ACTIVITY_META[a.type]) return false;
-                if (alerted.has(String(a.id || a._id))) return false;
+            const newAlerts = activities.filter(a => {
+                if (a.completed || !ACTIVITY_META[a.type]) return false;
+                if (alerted.has(String(a.id || a._id)))    return false;
                 return isDue(a);
             });
             if (newAlerts.length > 0) {
                 newAlerts.forEach(a => markAlerted(a.id || a._id));
-                setAlertQueue(prev => [...prev, ...newAlerts]);
+                setAlertQueue(prev => {
+                    const existingIds = new Set(prev.map(x => String(x.id || x._id)));
+                    return [...prev, ...newAlerts.filter(na => !existingIds.has(String(na.id || na._id)))];
+                });
             }
         };
+        // Run immediately whenever activities change (catches a newly-saved activity
+        // whose scheduled time is "now" without waiting for the 60-second poll)
+        checkRef.current();
+    }, [activities]); // eslint-disable-line react-hooks/exhaustive-deps
 
-        check();
-        const timer = setInterval(check, 60 * 1000);
+    /* ── 60-second polling interval (stable — uses ref) ── */
+    useEffect(() => {
+        const timer = setInterval(() => { checkRef.current?.(); }, 60 * 1000);
         return () => clearInterval(timer);
-    }, []); // intentionally empty — uses ref for activities
+    }, []); // runs once on mount
 
     /* ── Task due-soon notifications (within 3 days) ── */
     const dueNotifications = useMemo(() => {
