@@ -92,15 +92,51 @@ export const opportunitiesToCalendarEvents = (opportunities = []) => opportuniti
   },
 }));
 
-export const activitiesToCalendarEvents = (activities = []) => activities.map((item) => ({
-  id: `activity-${item.id}`,
-  title: item.title || item.activityType || 'Activity',
-  start: item.start,
-  end: item.end || item.start,
-  backgroundColor: '#6f42c1',
-  borderColor: '#6f42c1',
-  extendedProps: {
-    type: 'activity',
-    activity: item,
-  },
-}));
+/* ── Colour per activity type ─────────────────────────────────────────── */
+const ACTIVITY_TYPE_COLORS = {
+  Meeting: '#4f46e5',  // indigo
+  Call:    '#059669',  // green
+  Email:   '#0891b2',  // teal
+  'To-Do': '#d97706',  // amber
+};
+
+/**
+ * Convert CRM activities (date/time fields) to FullCalendar event objects.
+ *
+ * Activities can store the date as:
+ *  a) ISO datetime: "2026-04-24T13:32"  (from the quick-create bar datetime-local)
+ *  b) Date-only + separate time: date="2026-04-24", time="13:32"  (from ActivitiesTab form)
+ *  c) Legacy: item.start  (original format, preserved for backward compat)
+ */
+export const activitiesToCalendarEvents = (activities = []) =>
+  activities
+    .filter(item => item.start || item.date)   // must have some date
+    .map((item) => {
+      // Build start datetime string
+      let start = item.start; // legacy
+      if (!start) {
+        const d = String(item.date || '');
+        if (d.includes('T')) {
+          start = d;                            // already ISO datetime
+        } else if (item.time) {
+          start = `${d}T${item.time}`;          // combine date + time
+        } else {
+          start = d;                            // date-only → all-day
+        }
+      }
+      const allDay = !(start && start.includes('T'));
+      const color  = ACTIVITY_TYPE_COLORS[item.type] || '#6f42c1';
+      return {
+        id:              `activity-${item.id || item._id}`,
+        title:           `${item.type ? `[${item.type}] ` : ''}${item.title || 'Activity'}`,
+        start,
+        end:             item.end || start,
+        allDay,
+        backgroundColor: color,
+        borderColor:     color,
+        extendedProps: {
+          type:     'activity',
+          activity: item,
+        },
+      };
+    });

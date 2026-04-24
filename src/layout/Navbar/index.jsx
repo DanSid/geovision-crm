@@ -94,51 +94,59 @@ const CompactNav = ({
     const currentAlert = alertQueue[0] || null;
     const dismissAlert = () => setAlertQueue(prev => prev.slice(1));
 
-    /* ── isDue: true when an activity's scheduled time has arrived (within last 90 min) ── */
+    /* ── isDue: activity's scheduled time has arrived (within last 90 min) ── */
     const isDue = (a) => {
-        const dateVal = a.date;
+        const dateVal = String(a.date || '');
         if (!dateVal) return false;
         let dt;
         try {
-            const s = String(dateVal);
-            if (s.includes('T'))  dt = new Date(s);
-            else if (a.time)      dt = new Date(`${s}T${a.time}`);
-            else                  return false; // date-only, no specific time
-            if (isNaN(dt))        return false;
+            if (dateVal.includes('T'))   dt = new Date(dateVal);
+            else if (a.time)             dt = new Date(`${dateVal}T${a.time}`);
+            else                         return false;
+            if (isNaN(dt.getTime()))     return false;
         } catch { return false; }
         const diffMs = Date.now() - dt.getTime();
-        return diffMs >= 0 && diffMs <= 90 * 60 * 1000; // within last 90 minutes
+        return diffMs >= 0 && diffMs <= 90 * 60 * 1000;
     };
 
-    /* ── checkDueActivities: called on every activities change AND every 60 s ── */
-    const checkRef = useRef(null);
+    /* ── enqueue: safely add activity to alert queue (dedup) ── */
+    const enqueue = (activity) => {
+        const aid = String(activity.id || activity._id);
+        const alerted = getAlerted();
+        if (alerted.has(aid)) return;
+        markAlerted(aid);
+        setAlertQueue(prev =>
+            prev.some(x => String(x.id || x._id) === aid)
+                ? prev
+                : [...prev, activity]
+        );
+    };
 
+    /* ── PRIMARY trigger: custom DOM event fired by the Redux action ────────
+       Fires the instant an activity is saved, bypassing the polling cycle.  */
+    useEffect(() => {
+        const handler = (e) => { if (e.detail) enqueue(e.detail); };
+        window.addEventListener('gv-activity-due', handler);
+        return () => window.removeEventListener('gv-activity-due', handler);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    /* ── SECONDARY trigger: page-load check + 30-second polling ────────────
+       Catches activities that became due before the page was loaded, or while
+       the user was idle between poll ticks.                                  */
+    const checkRef = useRef(null);
     useEffect(() => {
         checkRef.current = () => {
-            const alerted = getAlerted();
-            const newAlerts = activities.filter(a => {
-                if (a.completed || !ACTIVITY_META[a.type]) return false;
-                if (alerted.has(String(a.id || a._id)))    return false;
-                return isDue(a);
-            });
-            if (newAlerts.length > 0) {
-                newAlerts.forEach(a => markAlerted(a.id || a._id));
-                setAlertQueue(prev => {
-                    const existingIds = new Set(prev.map(x => String(x.id || x._id)));
-                    return [...prev, ...newAlerts.filter(na => !existingIds.has(String(na.id || na._id)))];
-                });
-            }
+            activities
+                .filter(a => !a.completed && ACTIVITY_META[a.type] && isDue(a))
+                .forEach(enqueue);
         };
-        // Run immediately whenever activities change (catches a newly-saved activity
-        // whose scheduled time is "now" without waiting for the 60-second poll)
-        checkRef.current();
+        checkRef.current(); // run immediately on activities change
     }, [activities]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    /* ── 60-second polling interval (stable — uses ref) ── */
     useEffect(() => {
-        const timer = setInterval(() => { checkRef.current?.(); }, 60 * 1000);
+        const timer = setInterval(() => { checkRef.current?.(); }, 30 * 1000);
         return () => clearInterval(timer);
-    }, []); // runs once on mount
+    }, []);
 
     /* ── Task due-soon notifications (within 3 days) ── */
     const dueNotifications = useMemo(() => {

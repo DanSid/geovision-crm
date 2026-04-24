@@ -19,7 +19,7 @@ import CreateNewEvent from './CreateNewEvent';
 import { activitiesToCalendarEvents, opportunitiesToCalendarEvents, tasksToCalendarEvents } from '../../utils/taskData';
 import { STORAGE_KEYS, loadStorage } from '../../utils/crmData';
 
-const Calendar = ({ topNavCollapsed, toggleTopNav, tasks = [], opportunities = [] }) => {
+const Calendar = ({ topNavCollapsed, toggleTopNav, tasks = [], opportunities = [], activities = [] }) => {
   const calendarRef = createRef();
   const [showSidebar, setShowSidebar] = useState(true);
   const [showEventInfo, setShowEventInfo] = useState(false);
@@ -31,9 +31,20 @@ const Calendar = ({ topNavCollapsed, toggleTopNav, tasks = [], opportunities = [
   const height = useWindowHeight();
 
   const events = useMemo(() => {
-    const activities = loadStorage(STORAGE_KEYS.activities, []);
-    return [...tasksToCalendarEvents(tasks), ...opportunitiesToCalendarEvents(opportunities), ...activitiesToCalendarEvents(activities)];
-  }, [tasks, opportunities]);
+    // Use Redux activities (kept in sync with localStorage by the store subscriber).
+    // Fall back to localStorage for any legacy items not yet in Redux.
+    const localActivities = loadStorage(STORAGE_KEYS.activities, []);
+    const reduxIds = new Set(activities.map(a => String(a.id || a._id)));
+    const merged = [
+      ...activities,
+      ...localActivities.filter(a => !reduxIds.has(String(a.id || a._id))),
+    ];
+    return [
+      ...tasksToCalendarEvents(tasks),
+      ...opportunitiesToCalendarEvents(opportunities),
+      ...activitiesToCalendarEvents(merged),
+    ];
+  }, [tasks, opportunities, activities]);
 
   const handleChange = (action) => {
     const api = calendarRef.current?.getApi();
@@ -98,5 +109,10 @@ const Calendar = ({ topNavCollapsed, toggleTopNav, tasks = [], opportunities = [
   );
 };
 
-const mapState = ({ theme, tasks, opportunities }) => ({ topNavCollapsed: theme.topNavCollapsed, tasks, opportunities });
+const mapState = ({ theme, tasks, opportunities, activities }) => ({
+  topNavCollapsed: theme.topNavCollapsed,
+  tasks:        tasks        || [],
+  opportunities: opportunities || [],
+  activities:   activities   || [],
+});
 export default connect(mapState, { toggleTopNav })(Calendar);

@@ -139,10 +139,45 @@ export const updateGroup = groupCrud.update;
 export const deleteGroup = groupCrud.remove;
 
 // ── ACTIVITIES ────────────────────────────────────────────────────────────────
-const activityCrud = crudThunks(activitiesApi, ADD_ACTIVITY, UPDATE_ACTIVITY, DELETE_ACTIVITY);
-export const addActivity    = activityCrud.add;
-export const updateActivity = activityCrud.update;
-export const deleteActivity = activityCrud.remove;
+
+/**
+ * Fire the 'gv-activity-due' custom DOM event if the activity's scheduled
+ * time has arrived (within the last 90 minutes).  The Navbar listens for
+ * this event and shows the alert modal immediately — bypassing the 60-second
+ * polling cycle entirely.
+ */
+const fireIfDue = (activity) => {
+    if (!activity || activity.completed) return;
+    if (!['Meeting', 'Call', 'Email', 'To-Do'].includes(activity.type)) return;
+    const dateVal = String(activity.date || '');
+    if (!dateVal) return;
+    let dt;
+    try {
+        if (dateVal.includes('T'))   dt = new Date(dateVal);
+        else if (activity.time)      dt = new Date(`${dateVal}T${activity.time}`);
+        else return; // no specific time — no popup
+        if (isNaN(dt.getTime())) return;
+    } catch { return; }
+    const diffMs = Date.now() - dt.getTime();
+    if (diffMs >= 0 && diffMs <= 90 * 60 * 1000) {
+        window.dispatchEvent(new CustomEvent('gv-activity-due', { detail: activity }));
+    }
+};
+
+const activityCrudInternal = crudThunks(activitiesApi, ADD_ACTIVITY, UPDATE_ACTIVITY, DELETE_ACTIVITY);
+
+export const addActivity = (data) => async (dispatch) => {
+    const saved = await activityCrudInternal.add(data)(dispatch);
+    fireIfDue(saved);
+    return saved;
+};
+
+export const updateActivity = (data) => async (dispatch) => {
+    await activityCrudInternal.update(data)(dispatch);
+    fireIfDue(data);
+};
+
+export const deleteActivity = activityCrudInternal.remove;
 
 // ── NOTES ─────────────────────────────────────────────────────────────────────
 export const addNote = (data) => async (dispatch) => {
