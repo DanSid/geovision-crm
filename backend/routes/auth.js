@@ -13,7 +13,7 @@ const DEFAULT_USERS = [
         name: 'Admin',
         username: 'admin',
         email: 'admin@geovision.com',
-        password: 'admin123',
+        password: 'admin1234',
         role: 'admin',
     },
     {
@@ -42,12 +42,42 @@ const DEFAULT_USERS = [
 const seedUsers = async () => {
     try {
         for (const seed of DEFAULT_USERS) {
-            const exists = await User.findOne({
+            const existing = await User.findOne({
                 $or: [{ email: seed.email }, { username: seed.username }],
             });
-            if (!exists) {
+            if (!existing) {
                 await User.create(seed);
                 console.log(`✅  Seeded user ${seed.email}`);
+                continue;
+            }
+
+            let changed = false;
+            if (existing.name !== seed.name) {
+                existing.name = seed.name;
+                changed = true;
+            }
+            if (existing.username !== seed.username) {
+                existing.username = seed.username;
+                changed = true;
+            }
+            if (existing.email !== seed.email) {
+                existing.email = seed.email;
+                changed = true;
+            }
+            if (existing.role !== seed.role) {
+                existing.role = seed.role;
+                changed = true;
+            }
+
+            const passwordMatches = await existing.comparePassword(seed.password);
+            if (!passwordMatches) {
+                existing.password = seed.password;
+                changed = true;
+            }
+
+            if (changed) {
+                await existing.save();
+                console.log(`✅  Updated seeded user ${seed.email}`);
             }
         }
     } catch (err) {

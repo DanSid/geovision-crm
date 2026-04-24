@@ -3,7 +3,12 @@ import { authApi } from '../../services/api';
 
 const USER_KEYS = ['gv_crm_users', 'crm_users', 'users'];
 const CURRENT_USER_KEYS = ['gv_crm_current_user', 'crm_current_user', 'currentUser', 'auth_user'];
-const DEFAULT_ADMIN = { id: '1', name: 'Admin', username: 'admin', email: 'admin@geovision.com', password: 'admin123', role: 'admin' };
+const DEFAULT_USERS = [
+    { id: '1', name: 'Admin', username: 'admin', email: 'admin@geovision.com', password: 'admin1234', role: 'admin' },
+    { id: '2', name: 'Boatemaa', username: 'boatemaa', email: 'boatemaa@geovisionservices.com', password: 'Maame1234', role: 'user' },
+    { id: '3', name: 'Ellis', username: 'ellis', email: 'ellis@geovisionservices.com', password: 'Ellis1234', role: 'user' },
+    { id: '4', name: 'Nina', username: 'nina', email: 'nina@geovisionservices.com', password: 'Nina1234', role: 'user' },
+];
 
 const safeParse = (value, fallback = null) => {
     try { return value ? JSON.parse(value) : fallback; } catch { return fallback; }
@@ -71,14 +76,13 @@ export const loadUsers = () => {
         const parsed = safeParse(localStorage.getItem(key), null);
         if (Array.isArray(parsed) && parsed.length) {
             const normalized = parsed.map(normalizeUser);
-            const hasAdmin = normalized.some((user) => user.email === DEFAULT_ADMIN.email || user.username === DEFAULT_ADMIN.username);
-            const seeded = hasAdmin ? normalized : [DEFAULT_ADMIN, ...normalized];
+            const seeded = mergeUsers(DEFAULT_USERS, normalized);
             persistUsers(seeded);
             return seeded;
         }
     }
-    persistUsers([DEFAULT_ADMIN]);
-    return [DEFAULT_ADMIN];
+    persistUsers(DEFAULT_USERS);
+    return DEFAULT_USERS;
 };
 
 export const loadCurrentUser = () => {
