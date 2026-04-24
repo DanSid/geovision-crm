@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import SimpleBar from 'simplebar-react';
-import { AlignLeft, Bell, Calendar, CheckSquare, Clock, Search, Settings, Tag } from 'react-feather';
-import { Button, Container, Dropdown, Form, InputGroup, Nav, Navbar } from 'react-bootstrap';
+import { AlignLeft, Bell, Calendar, CheckSquare, Clock, Mail, Phone, Search, Settings, Tag, X } from 'react-feather';
+import { Button, Container, Dropdown, Form, InputGroup, Modal, Nav, Navbar } from 'react-bootstrap';
 import { toggleCollapsedNav } from '../../redux/action/Theme';
 import { logoutUser } from '../../redux/action/Auth';
 import { connect } from 'react-redux';
@@ -10,6 +10,12 @@ import JampackBadge from '../../components/@hk-badge/@hk-badge';
 import classNames from 'classnames';
 import { motion } from '../../utils/motion-shim.jsx';
 import { ThemeSwitcher } from '../../utils/theme-provider/theme-switcher';
+import {
+    getActivityDateTime,
+    isActivityDueNow,
+    isActivityTodayOrOverdue,
+    toLocalDateKey,
+} from '../../utils/activitySchedule';
 
 // ── Due-date helpers ──────────────────────────────────────────────────────────
 const getDueLabel = (dateStr) => {
@@ -23,9 +29,51 @@ const getDueLabel = (dateStr) => {
     return `Due in ${diffDays} days`;
 };
 
-const TopNav = ({ navCollapsed, toggleCollapsedNav, currentUser, logoutUser, tasks = [] }) => {
+const fmtActivityDate = (dateVal, timeStr) => {
+    const dt = getActivityDateTime({ date: dateVal, time: timeStr });
+    if (!dt) return dateVal || '';
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dtDay = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    const diffDays = Math.round((dtDay - today) / (1000 * 60 * 60 * 24));
+
+    const hasTime = String(dateVal || '').includes('T') || !!String(timeStr || '').trim();
+    const timePart = hasTime
+        ? ` at ${dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+        : '';
+
+    if (diffDays === 0) return `Today${timePart}`;
+    if (diffDays === -1) return `Yesterday${timePart}`;
+    if (diffDays === 1) return `Tomorrow${timePart}`;
+    if (diffDays < 0) return `${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${timePart} (overdue)`;
+    return `${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${timePart}`;
+};
+
+const ACTIVITY_META = {
+    Meeting: { icon: <Calendar size={14} />, bg: 'primary' },
+    Call: { icon: <Phone size={14} />, bg: 'success' },
+    Email: { icon: <Mail size={14} />, bg: 'info' },
+    'To-Do': { icon: <CheckSquare size={14} />, bg: 'warning' },
+};
+
+const SESSION_ALERTED = new Set();
+
+const TopNav = ({
+    navCollapsed,
+    toggleCollapsedNav,
+    currentUser,
+    logoutUser,
+    tasks = [],
+    opportunities = [],
+    activities = [],
+}) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const [searchValue, setSearchValue] = useState('');
+    const [alertQueue, setAlertQueue] = useState([]);
+
+    const currentAlert = alertQueue[0] || null;
+    const dismissAlert = () => setAlertQueue((prev) => prev.slice(1));
 
     const CloseSearchInput = () => {
         setSearchValue('');
@@ -37,6 +85,38 @@ const TopNav = ({ navCollapsed, toggleCollapsedNav, currentUser, logoutUser, tas
         open: { opacity: 1, y: 0 },
         close: { opacity: 0, y: 10 },
     };
+
+    const enqueue = (activity) => {
+        const aid = String(activity?.id || activity?._id || '');
+        if (!aid || SESSION_ALERTED.has(aid)) return;
+        SESSION_ALERTED.add(aid);
+        setAlertQueue((prev) =>
+            prev.some((item) => String(item.id || item._id) === aid) ? prev : [...prev, activity]
+        );
+    };
+
+    useEffect(() => {
+        const handler = (event) => {
+            if (event.detail) enqueue(event.detail);
+        };
+        window.addEventListener('gv-activity-due', handler);
+        return () => window.removeEventListener('gv-activity-due', handler);
+    }, []);
+
+    const checkRef = useRef(null);
+    useEffect(() => {
+        checkRef.current = () => {
+            activities
+                .filter((activity) => !activity.completed && ACTIVITY_META[activity.type] && isActivityDueNow(activity))
+                .forEach(enqueue);
+        };
+        checkRef.current();
+    }, [activities]);
+
+    useEffect(() => {
+        const timer = setInterval(() => checkRef.current?.(), 30 * 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     // ── Task notifications ────────────────────────────────────────────────────
     const dueNotifications = useMemo(() => {
@@ -57,7 +137,37 @@ const TopNav = ({ navCollapsed, toggleCollapsedNav, currentUser, logoutUser, tas
             });
     }, [tasks]);
 
-    const notifCount = dueNotifications.length;
+    const oppNotifications = useMemo(() => {
+        const now = new Date();
+        const closedStages = ['Closed Won', 'Closed Lost'];
+        return opportunities
+            .filter((opp) => {
+                if (closedStages.includes(opp.stage)) return false;
+                const due = opp.expectedCloseDate || opp.closeDate;
+                if (!due) return false;
+                const dt = new Date(due);
+                if (Number.isNaN(dt.getTime())) return false;
+                return Math.ceil((dt - now) / (1000 * 60 * 60 * 24)) <= 7;
+            })
+            .sort((a, b) => {
+                const da = new Date(a.expectedCloseDate || a.closeDate || 0);
+                const db = new Date(b.expectedCloseDate || b.closeDate || 0);
+                return da - db;
+            });
+    }, [opportunities]);
+
+    const activityNotifications = useMemo(() => {
+        return activities
+            .filter((activity) => !activity.completed && ACTIVITY_META[activity.type] && isActivityTodayOrOverdue(activity))
+            .sort((a, b) => {
+                const da = getActivityDateTime(a) || new Date(a.createdAt || 0);
+                const db = getActivityDateTime(b) || new Date(b.createdAt || 0);
+                return da - db;
+            })
+            .slice(0, 10);
+    }, [activities]);
+
+    const notifCount = dueNotifications.length + oppNotifications.length + activityNotifications.length;
 
     // ── User avatar ───────────────────────────────────────────────────────────
     const userInitial = currentUser?.name?.charAt(0)?.toUpperCase() || 'U';
@@ -213,51 +323,135 @@ const TopNav = ({ navCollapsed, toggleCollapsedNav, currentUser, logoutUser, tas
                                         </Button>
                                     </Dropdown.Header>
                                     <SimpleBar className="dropdown-body p-2" style={{ maxHeight: 360 }}>
-                                        {dueNotifications.length === 0 ? (
+                                        {notifCount === 0 ? (
                                             <div className="text-center py-4 text-muted fs-7">
                                                 <span className="feather-icon d-block mb-2">
                                                     <CheckSquare size={28} />
                                                 </span>
-                                                All tasks are on track!
+                                                No pending reminders.
                                             </div>
                                         ) : (
-                                            dueNotifications.map((task) => {
-                                                const due = task.dueDate || task.deadline || task.Deadline;
-                                                const overdue = new Date(due) < new Date();
-                                                const label = getDueLabel(due);
-                                                const taskName = task.title || task.Task_Name || task.name || 'Untitled Task';
-                                                return (
-                                                    <Dropdown.Item key={task.id} as={Link} to="/apps/tasks/task-list">
-                                                        <div className="media">
-                                                            <div className="media-head">
-                                                                <div className={`avatar avatar-icon avatar-sm avatar-${overdue ? 'danger' : 'warning'} avatar-rounded`}>
-                                                                    <span className="initial-wrap">
-                                                                        <span className="feather-icon">
-                                                                            {overdue ? <Clock /> : <Calendar />}
-                                                                        </span>
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            <div className="media-body">
-                                                                <div className="notifications-text">
-                                                                    <strong>{taskName}</strong>
-                                                                </div>
-                                                                <div className="notifications-info">
-                                                                    <JampackBadge bg={overdue ? 'danger' : 'warning'} soft>
-                                                                        {overdue ? 'Overdue' : 'Due soon'}
-                                                                    </JampackBadge>
-                                                                    <div className="notifications-time">{label}</div>
-                                                                </div>
-                                                            </div>
+                                            <>
+                                                {activityNotifications.length > 0 && (
+                                                    <>
+                                                        <div className="px-2 py-1 text-muted fs-8 fw-semibold text-uppercase" style={{ letterSpacing: '0.05em' }}>
+                                                            Sales Activities
                                                         </div>
-                                                    </Dropdown.Item>
-                                                );
-                                            })
+                                                        {activityNotifications.map((activity) => {
+                                                            const id = activity.id || activity._id;
+                                                            const meta = ACTIVITY_META[activity.type] || ACTIVITY_META.Meeting;
+                                                            const dateStr = toLocalDateKey(getActivityDateTime(activity));
+                                                            const todayStr = toLocalDateKey(new Date());
+                                                            const overdue = !!dateStr && dateStr < todayStr;
+                                                            return (
+                                                                <Dropdown.Item key={`act-${id}`} as={Link} to="/apps/contacts/contact-list">
+                                                                    <div className="media">
+                                                                        <div className="media-head">
+                                                                            <div className={`avatar avatar-icon avatar-sm avatar-${overdue ? 'danger' : meta.bg} avatar-rounded`}>
+                                                                                <span className="initial-wrap">
+                                                                                    <span className="feather-icon">{meta.icon}</span>
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="media-body">
+                                                                            <div className="notifications-text">
+                                                                                <strong>{activity.title || activity.type}</strong>
+                                                                            </div>
+                                                                            <div className="notifications-info">
+                                                                                <JampackBadge bg={overdue ? 'danger' : meta.bg} soft>
+                                                                                    {overdue ? `${activity.type} overdue` : `${activity.type} today`}
+                                                                                </JampackBadge>
+                                                                                <div className="notifications-time">{fmtActivityDate(activity.date, activity.time)}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </Dropdown.Item>
+                                                            );
+                                                        })}
+                                                    </>
+                                                )}
+
+                                                {dueNotifications.length > 0 && (
+                                                    <>
+                                                        <div className="px-2 py-1 mt-1 text-muted fs-8 fw-semibold text-uppercase" style={{ letterSpacing: '0.05em' }}>
+                                                            Tasks
+                                                        </div>
+                                                        {dueNotifications.map((task) => {
+                                                            const due = task.dueDate || task.deadline || task.Deadline;
+                                                            const overdue = new Date(due) < new Date();
+                                                            const label = getDueLabel(due);
+                                                            const taskName = task.title || task.Task_Name || task.name || 'Untitled Task';
+                                                            return (
+                                                                <Dropdown.Item key={`task-${task.id}`} as={Link} to="/apps/tasks/task-list">
+                                                                    <div className="media">
+                                                                        <div className="media-head">
+                                                                            <div className={`avatar avatar-icon avatar-sm avatar-${overdue ? 'danger' : 'warning'} avatar-rounded`}>
+                                                                                <span className="initial-wrap">
+                                                                                    <span className="feather-icon">
+                                                                                        {overdue ? <Clock /> : <Calendar />}
+                                                                                    </span>
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="media-body">
+                                                                            <div className="notifications-text">
+                                                                                <strong>{taskName}</strong>
+                                                                            </div>
+                                                                            <div className="notifications-info">
+                                                                                <JampackBadge bg={overdue ? 'danger' : 'warning'} soft>
+                                                                                    {overdue ? 'Overdue' : 'Due soon'}
+                                                                                </JampackBadge>
+                                                                                <div className="notifications-time">{label}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </Dropdown.Item>
+                                                            );
+                                                        })}
+                                                    </>
+                                                )}
+
+                                                {oppNotifications.length > 0 && (
+                                                    <>
+                                                        <div className="px-2 py-1 mt-1 text-muted fs-8 fw-semibold text-uppercase" style={{ letterSpacing: '0.05em' }}>
+                                                            Opportunities
+                                                        </div>
+                                                        {oppNotifications.map((opp) => {
+                                                            const due = opp.expectedCloseDate || opp.closeDate;
+                                                            const overdue = new Date(due) < new Date();
+                                                            return (
+                                                                <Dropdown.Item key={`opp-${opp.id || opp._id}`} as={Link} to="/apps/opportunities">
+                                                                    <div className="media">
+                                                                        <div className="media-head">
+                                                                            <div className={`avatar avatar-icon avatar-sm avatar-${overdue ? 'danger' : 'success'} avatar-rounded`}>
+                                                                                <span className="initial-wrap">
+                                                                                    <span className="feather-icon"><Calendar /></span>
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="media-body">
+                                                                            <div className="notifications-text">
+                                                                                <strong>{opp.name || opp.title || 'Untitled Opportunity'}</strong>
+                                                                            </div>
+                                                                            <div className="notifications-info">
+                                                                                <JampackBadge bg={overdue ? 'danger' : 'success'} soft>
+                                                                                    {overdue ? 'Close date passed' : 'Closing soon'}
+                                                                                </JampackBadge>
+                                                                                <div className="notifications-time">{getDueLabel(due)}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </Dropdown.Item>
+                                                            );
+                                                        })}
+                                                    </>
+                                                )}
+                                            </>
                                         )}
                                     </SimpleBar>
                                     <div className="dropdown-footer">
-                                        <Link to="/apps/tasks/task-list">
-                                            <u>View all tasks</u>
+                                        <Link to="/apps/calendar">
+                                            <u>View all activities</u>
                                         </Link>
                                     </div>
                                 </Dropdown.Menu>
@@ -331,14 +525,59 @@ const TopNav = ({ navCollapsed, toggleCollapsedNav, currentUser, logoutUser, tas
                 </div>
                 {/* /End Nav */}
             </Container>
+
+            {currentAlert && (() => {
+                const meta = ACTIVITY_META[currentAlert.type] || ACTIVITY_META.Meeting;
+                const queueLen = alertQueue.length;
+                return (
+                    <Modal show centered onHide={dismissAlert} backdrop="static">
+                        <Modal.Header className="py-3" style={{ borderBottom: '2px solid var(--bs-primary-bg-subtle)' }}>
+                            <Modal.Title className="fs-6 d-flex align-items-center gap-2">
+                                <span className={`avatar avatar-icon avatar-sm avatar-${meta.bg} avatar-rounded`}>
+                                    <span className="initial-wrap">
+                                        <span className="feather-icon">{meta.icon}</span>
+                                    </span>
+                                </span>
+                                {currentAlert.type} Reminder
+                                {queueLen > 1 && (
+                                    <JampackBadge bg="secondary" soft className="ms-1">{queueLen} pending</JampackBadge>
+                                )}
+                            </Modal.Title>
+                            <button type="button" className="btn-close" onClick={dismissAlert} aria-label="Close" />
+                        </Modal.Header>
+                        <Modal.Body>
+                            <p className="fw-semibold mb-2 fs-6">{currentAlert.title || currentAlert.type}</p>
+                            {currentAlert.description && (
+                                <p className="text-muted fs-7 mb-2" style={{ whiteSpace: 'pre-line' }}>
+                                    {currentAlert.description}
+                                </p>
+                            )}
+                            <div className="d-flex align-items-center gap-2 mt-3">
+                                <span className="feather-icon text-muted"><Clock size={14} /></span>
+                                <span className="fs-7 text-muted">{fmtActivityDate(currentAlert.date, currentAlert.time)}</span>
+                            </div>
+                        </Modal.Body>
+                        <Modal.Footer className="py-2 gap-2">
+                            <Button variant="outline-secondary" size="sm" onClick={dismissAlert}>
+                                <X size={13} className="me-1" />Dismiss
+                            </Button>
+                            <Button variant={meta.bg === 'warning' ? 'warning' : meta.bg} size="sm" as={Link} to="/apps/calendar" onClick={dismissAlert}>
+                                <Calendar size={13} className="me-1" />View Calendar
+                            </Button>
+                        </Modal.Footer>
+                    </Modal>
+                );
+            })()}
         </Navbar>
     );
 };
 
-const mapStateToProps = ({ theme, auth, tasks }) => ({
+const mapStateToProps = ({ theme, auth, tasks, opportunities, activities }) => ({
     navCollapsed: theme.navCollapsed,
     currentUser: auth.currentUser,
     tasks: tasks || [],
+    opportunities: opportunities || [],
+    activities: activities || [],
 });
 
 export default connect(mapStateToProps, { toggleCollapsedNav, logoutUser })(TopNav);
