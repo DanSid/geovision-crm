@@ -359,7 +359,7 @@ const ContactActionBar = ({
             <QModal
                 show={modal === 'meeting'} onHide={close}
                 title={`Schedule Meeting — ${name}`}
-                onSave={() => saveActivity('Meeting')} saveLabel="Schedule Meeting"
+                onSave={() => saveActivity('Meeting')} saveLabel="Save Meeting"
                 disabled={!fd.title?.trim()}
             >
                 <Form.Group className="mb-3">

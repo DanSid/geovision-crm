@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Button, Table } from 'react-bootstrap';
-import { Eye, Paperclip, Trash2, Upload } from 'react-feather';
+import { Download, Paperclip, Trash2, Upload } from 'react-feather';
 import { connect } from 'react-redux';
 import { addDocument, deleteDocument } from '../../../../redux/action/Crm';
 
@@ -52,32 +52,24 @@ const DocumentsTab = ({ entityType, entityId, documents, addDocument, deleteDocu
         e.target.value = '';
     };
 
-    // Open file in new tab using the stored base64 data URL
-    const handleView = (doc) => {
+    // Download the file using the stored base64 data URL
+    const handleDownload = (doc) => {
         if (!doc.dataUrl) {
-            alert('This document was uploaded before view support was added. Please re-upload the file to enable viewing.');
+            window.dispatchEvent(new CustomEvent('gv-show-toast', {
+                detail: {
+                    message: 'File data not found. Please delete and re-upload this document.',
+                    variant: 'warning',
+                    title: 'Download Unavailable',
+                }
+            }));
             return;
         }
-        // For PDFs and images, open directly in a new tab
-        const win = window.open('', '_blank');
-        if (doc.type && (doc.type.includes('pdf') || doc.type.includes('image'))) {
-            win.document.write(`
-                <html>
-                  <head><title>${doc.name}</title></head>
-                  <body style="margin:0;background:#1a1a1a;">
-                    <iframe src="${doc.dataUrl}" style="width:100vw;height:100vh;border:none;"></iframe>
-                  </body>
-                </html>
-            `);
-        } else {
-            // For other types, trigger a download
-            const a = win.document.createElement('a');
-            a.href = doc.dataUrl;
-            a.download = doc.name;
-            win.document.body.appendChild(a);
-            a.click();
-            win.close();
-        }
+        const a = document.createElement('a');
+        a.href = doc.dataUrl;
+        a.download = doc.name || 'download';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     };
 
     return (
@@ -134,10 +126,10 @@ const DocumentsTab = ({ entityType, entityId, documents, addDocument, deleteDocu
                                                 variant="soft-info"
                                                 size="sm"
                                                 className="btn-icon btn-rounded p-1"
-                                                title="View document"
-                                                onClick={() => handleView(d)}
+                                                title="Download document"
+                                                onClick={() => handleDownload(d)}
                                             >
-                                                <Eye size={13} />
+                                                <Download size={13} />
                                             </Button>
                                             <Button
                                                 variant="flush-dark"

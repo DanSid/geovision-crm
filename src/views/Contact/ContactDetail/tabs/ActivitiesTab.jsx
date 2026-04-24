@@ -51,6 +51,25 @@ const ActivitiesTab = ({ entityType, entityId, activities, opportunities, addAct
         return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
 
+    /* Format date portion only (handles both "YYYY-MM-DD" and full ISO strings) */
+    const fmtDate = (val) => {
+        if (!val) return '—';
+        try {
+            return new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        } catch { return val; }
+    };
+
+    /* Return time string — prefers explicit time field, falls back to time in ISO date */
+    const fmtTime = (timeStr, dateVal) => {
+        if (timeStr) return timeStr;
+        if (dateVal && dateVal.includes('T')) {
+            try {
+                return new Date(dateVal).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            } catch { return '—'; }
+        }
+        return '—';
+    };
+
     return (
         <div>
             <div className="d-flex justify-content-between align-items-center mb-3">
@@ -75,6 +94,7 @@ const ActivitiesTab = ({ entityType, entityId, activities, opportunities, addAct
                                 <th>Time</th>
                                 <th>Priority</th>
                                 <th>Title</th>
+                                <th>Notes</th>
                                 <th>Duration</th>
                             </tr>
                         </thead>
@@ -84,14 +104,23 @@ const ActivitiesTab = ({ entityType, entityId, activities, opportunities, addAct
                                     <td>
                                         <Badge bg="light" text="dark" className="border">{a.type}</Badge>
                                     </td>
-                                    <td className="fs-7">{a.date || fmt(a.createdAt).split(',')[0]}</td>
-                                    <td className="fs-7">{a.time || '—'}</td>
+                                    <td className="fs-7">{fmtDate(a.date || a.createdAt)}</td>
+                                    <td className="fs-7">{fmtTime(a.time, a.date)}</td>
                                     <td>
                                         <Badge bg={priorityBg[a.priority] || 'secondary'} className="fw-normal">
-                                            {a.priority}
+                                            {a.priority || '—'}
                                         </Badge>
                                     </td>
                                     <td className="fw-medium fs-7">{a.title}</td>
+                                    <td className="fs-7" style={{ maxWidth: 200 }}>
+                                        <span
+                                            className="d-inline-block text-truncate"
+                                            style={{ maxWidth: 200, verticalAlign: 'middle' }}
+                                            title={a.description || ''}
+                                        >
+                                            {a.description || '—'}
+                                        </span>
+                                    </td>
                                     <td className="fs-7">{a.duration || '—'}</td>
                                 </tr>
                             ))}

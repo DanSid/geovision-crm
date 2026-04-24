@@ -193,7 +193,7 @@ const ContactDetailEditPanel = ({ form, onChange, activities = [], opportunities
                         <EditRow label="Address 1">{inp('address1', 'text', 'Street address')}</EditRow>
                         <EditRow label="Address 2">{inp('address2', 'text', 'Apt, suite, unit…')}</EditRow>
                         <EditRow label="City">{inp('city',    'text', 'City')}</EditRow>
-                        <EditRow label="County/State">{inp('state', 'text', 'State or county')}</EditRow>
+                        <EditRow label="State/Region">{inp('state', 'text', 'State or county')}</EditRow>
                         <EditRow label="Post/ZIP">{inp('post', 'text', 'Postal code')}</EditRow>
                         <EditRow label="Country">{inp('country', 'text', 'Country')}</EditRow>
                         <EditRow label="Fax">{inp('fax', 'tel', 'Fax number')}</EditRow>
