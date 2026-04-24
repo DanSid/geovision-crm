@@ -9,6 +9,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import moment from 'moment';
 import { useWindowHeight } from '@react-hook/window-size';
 import { connect } from 'react-redux';
+import { useHistory } from 'react-router-dom';
 import { toggleTopNav } from '../../redux/action/Theme';
 import { ChevronDown, ChevronUp } from 'react-feather';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -21,6 +22,7 @@ import { STORAGE_KEYS, loadStorage } from '../../utils/crmData';
 
 const Calendar = ({ topNavCollapsed, toggleTopNav, tasks = [], opportunities = [], activities = [] }) => {
   const calendarRef = createRef();
+  const history = useHistory();
   const [showSidebar, setShowSidebar] = useState(true);
   const [showEventInfo, setShowEventInfo] = useState(false);
   const [createEvent, setCreateEvent] = useState(false);
@@ -97,7 +99,19 @@ const Calendar = ({ topNavCollapsed, toggleTopNav, tasks = [], opportunities = [
                 selectable
                 events={events}
                 dateClick={(info) => { setSelectedDate(`${info.dateStr}T09:00`); setCreateEvent(true); }}
-                eventClick={(info) => { setSelectedEvent(info.event); setShowEventInfo(true); }}
+                eventClick={(info) => {
+                  const { type, activity } = info.event.extendedProps || {};
+                  if (type === 'activity' && activity) {
+                    // Deep-link → contact's Activities tab
+                    const navData = { contactId: String(activity.entityId || ''), tab: 'activities' };
+                    localStorage.setItem('gv_pending_nav', JSON.stringify(navData));
+                    window.dispatchEvent(new CustomEvent('gv-nav-intent', { detail: navData }));
+                    history.push('/apps/contacts/contact-list');
+                    return;
+                  }
+                  setSelectedEvent(info.event);
+                  setShowEventInfo(true);
+                }}
               />
             </div>
           </div>

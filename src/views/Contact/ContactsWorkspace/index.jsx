@@ -109,6 +109,8 @@ const ContactsWorkspace = ({
     const [form, setForm]                   = useState(EMPTY);
     const [errors, setErrors]               = useState({});
     const [editingContact, setEditingContact] = useState(null);   // for modal
+    const [pendingNav, setPendingNav]       = useState(null);     // { contactId, tab }
+    const [activeTab, setActiveTab]         = useState('activities');
 
     /* ── Inline edit state (for Detail View) ── */
     const [inlineForm, setInlineForm] = useState(null);
@@ -146,6 +148,40 @@ const ContactsWorkspace = ({
             setInlineForm(null);
         }
     }, [contactId]); // only reset when ID changes, not on every render
+
+    /* ── Deep-link from Calendar: read localStorage + listen for same-page nav ── */
+    useEffect(() => {
+        // Check for a pending navigation stored before route change
+        const raw = localStorage.getItem('gv_pending_nav');
+        if (raw) {
+            try {
+                const nav = JSON.parse(raw);
+                localStorage.removeItem('gv_pending_nav');
+                setPendingNav(nav);
+            } catch { /* ignore */ }
+        }
+        // Also handle same-page dispatch (user was already on this route)
+        const handler = (e) => { if (e.detail) setPendingNav(e.detail); };
+        window.addEventListener('gv-nav-intent', handler);
+        return () => window.removeEventListener('gv-nav-intent', handler);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    /* ── Apply pending navigation once the contacts list is available ── */
+    useEffect(() => {
+        if (!pendingNav || contacts.length === 0) return;
+        const { contactId, tab } = pendingNav;
+        if (contactId) {
+            const idx = contacts.findIndex(
+                c => String(c.id || c._id) === String(contactId)
+            );
+            if (idx >= 0) {
+                setSelectedIndex(idx);
+                setViewMode('detail');
+            }
+        }
+        if (tab) setActiveTab(tab);
+        setPendingNav(null);
+    }, [pendingNav, contacts]); // eslint-disable-line react-hooks/exhaustive-deps
 
     /* ── isDirty: has inlineForm diverged from selectedContact? ── */
     const isDirty = useMemo(() => {
@@ -347,10 +383,12 @@ const ContactsWorkspace = ({
 
                                     {/* ── Tab set (Activities, Notes, Opportunities, etc.) ── */}
                                     <EntityTabSet
+                                        key={`tabs-${contactId}`}
                                         entityType="contact"
                                         entityId={contactId}
                                         contactName={contactName}
                                         extraTabs={extraTabs}
+                                        defaultTab={activeTab}
                                     />
                                 </SimpleBar>
                             ) : null}

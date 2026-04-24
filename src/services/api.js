@@ -63,6 +63,13 @@ export const settingsApi = {
     set: (key, value) => api.put(`/settings/${key}`, value),
 };
 
+export const authApi = {
+    login: (credentials) => api.post('/auth/login', credentials),
+    register: (data) => api.post('/auth/register', data),
+    listUsers: () => api.get('/auth/users'),
+    updateUser: (id, data) => api.put(`/auth/users/${id}`, data),
+};
+
 function buildCrud(resource) {
     return {
         getAll: ()          => api.get(`/${resource}`),

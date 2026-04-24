@@ -28,6 +28,7 @@ import {
     invoicesApi, tasksApi, boardsApi, equipmentApi, stockLocationsApi,
     crewMembersApi, vehiclesApi, maintenanceApi, requestsApi, settingsApi,
 } from '../../services/api';
+import { isActivityDueNow } from '../../utils/activitySchedule';
 
 // ── Generic CRUD thunk factory ────────────────────────────────────────────────
 // Creates add/update/delete thunks for any entity.
@@ -149,17 +150,7 @@ export const deleteGroup = groupCrud.remove;
 const fireIfDue = (activity) => {
     if (!activity || activity.completed) return;
     if (!['Meeting', 'Call', 'Email', 'To-Do'].includes(activity.type)) return;
-    const dateVal = String(activity.date || '');
-    if (!dateVal) return;
-    let dt;
-    try {
-        if (dateVal.includes('T'))   dt = new Date(dateVal);
-        else if (activity.time)      dt = new Date(`${dateVal}T${activity.time}`);
-        else return; // no specific time — no popup
-        if (isNaN(dt.getTime())) return;
-    } catch { return; }
-    const diffMs = Date.now() - dt.getTime();
-    if (diffMs >= 0 && diffMs <= 90 * 60 * 1000) {
+    if (isActivityDueNow(activity)) {
         window.dispatchEvent(new CustomEvent('gv-activity-due', { detail: activity }));
     }
 };

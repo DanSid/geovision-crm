@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const crudRouter = require('./crudRouter');
 const settingsRouter = require('./settings');
+const { router: authRouter } = require('./auth');
 
 const Contact         = require('../models/Contact');
 const Opportunity     = require('../models/Opportunity');
@@ -47,5 +48,8 @@ router.use('/requests',          crudRouter(Request));
 
 // ── Settings (pipeline + permissions — single document per key) ───────────────
 router.use('/settings',          settingsRouter);
+
+// ── Authentication ────────────────────────────────────────────────────────────
+router.use('/auth',              authRouter);
 
 module.exports = router;

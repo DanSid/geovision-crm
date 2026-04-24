@@ -14,6 +14,12 @@ import CompactMenu from './CompactMenu';
 import HkBadge from '../../components/@hk-badge/@hk-badge';
 import { ThemeSwitcher } from '../../utils/theme-provider/theme-switcher';
 import { useTheme } from '../../utils/theme-provider/theme-provider';
+import {
+    getActivityDateTime,
+    isActivityDueNow,
+    isActivityTodayOrOverdue,
+    toLocalDateKey,
+} from '../../utils/activitySchedule';
 
 import BrandSm from '../../assets/img/geovision-brand-sm.svg';
 import BrandLight from '../../assets/img/geovision-logo.svg';
@@ -35,25 +41,15 @@ const fmtRelative = (dateStr) => {
 
 /* ── Human-friendly date+time for activities ─────────────────────────────── */
 const fmtActivityDate = (dateVal, timeStr) => {
-    if (!dateVal) return '';
-    let dt;
-    try {
-        if (dateVal.includes('T')) {
-            dt = new Date(dateVal);
-        } else if (timeStr) {
-            dt = new Date(`${dateVal}T${timeStr}`);
-        } else {
-            dt = new Date(dateVal + 'T00:00:00');
-        }
-        if (isNaN(dt)) return dateVal;
-    } catch { return dateVal; }
+    const dt = getActivityDateTime({ date: dateVal, time: timeStr });
+    if (!dt) return dateVal || '';
 
     const now = new Date();
     const today    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const dtDay    = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
     const diffDays = Math.round((dtDay - today) / (1000 * 60 * 60 * 24));
 
-    const hasTime  = dateVal.includes('T') || !!timeStr;
+    const hasTime  = String(dateVal || '').includes('T') || !!String(timeStr || '').trim();
     const timePart = hasTime
         ? ' at ' + dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
         : '';
@@ -73,13 +69,9 @@ const ACTIVITY_META = {
     'To-Do': { icon: <CheckSquare size={14} />, bg: 'warning' },
 };
 
-/* ── ALERTED_KEY for localStorage deduplication ──────────────────────────── */
-const ALERTED_KEY = 'gv_alerted_activities';
-const getAlerted    = () => new Set(JSON.parse(localStorage.getItem(ALERTED_KEY) || '[]'));
-const markAlerted   = (id) => {
-    const s = getAlerted(); s.add(String(id));
-    localStorage.setItem(ALERTED_KEY, JSON.stringify([...s]));
-};
+/* ── Session-only dedup — cleared on every page load so stale IDs never block
+   new alerts.  Uses a plain module-level Set (not localStorage).            */
+const SESSION_ALERTED = new Set();
 
 /* ══════════════════════════════════════════════════════════════════════════ */
 const CompactNav = ({
@@ -95,26 +87,13 @@ const CompactNav = ({
     const dismissAlert = () => setAlertQueue(prev => prev.slice(1));
 
     /* ── isDue: activity's scheduled time has arrived (within last 90 min) ── */
-    const isDue = (a) => {
-        const dateVal = String(a.date || '');
-        if (!dateVal) return false;
-        let dt;
-        try {
-            if (dateVal.includes('T'))   dt = new Date(dateVal);
-            else if (a.time)             dt = new Date(`${dateVal}T${a.time}`);
-            else                         return false;
-            if (isNaN(dt.getTime()))     return false;
-        } catch { return false; }
-        const diffMs = Date.now() - dt.getTime();
-        return diffMs >= 0 && diffMs <= 90 * 60 * 1000;
-    };
+    const isDue = (a) => isActivityDueNow(a);
 
-    /* ── enqueue: safely add activity to alert queue (dedup) ── */
+    /* ── enqueue: add activity to alert queue (session-scoped dedup) ── */
     const enqueue = (activity) => {
-        const aid = String(activity.id || activity._id);
-        const alerted = getAlerted();
-        if (alerted.has(aid)) return;
-        markAlerted(aid);
+        const aid = String(activity.id || activity._id || '');
+        if (!aid || SESSION_ALERTED.has(aid)) return;
+        SESSION_ALERTED.add(aid);
         setAlertQueue(prev =>
             prev.some(x => String(x.id || x._id) === aid)
                 ? prev
@@ -191,19 +170,11 @@ const CompactNav = ({
 
     /* ── Activity notifications (today or overdue, not completed) ── */
     const activityNotifications = useMemo(() => {
-        const todayStr = new Date().toISOString().slice(0, 10);
         return activities
-            .filter(a => {
-                if (a.completed) return false;
-                if (!ACTIVITY_META[a.type]) return false;
-                const dateVal = a.date;
-                if (!dateVal) return false;
-                const dateOnly = dateVal.slice(0, 10);
-                return dateOnly <= todayStr;
-            })
+            .filter(a => !a.completed && ACTIVITY_META[a.type] && isActivityTodayOrOverdue(a))
             .sort((a, b) => {
-                const da = new Date(a.date || a.createdAt || 0);
-                const db = new Date(b.date || b.createdAt || 0);
+                const da = getActivityDateTime(a) || new Date(a.createdAt || 0);
+                const db = getActivityDateTime(b) || new Date(b.createdAt || 0);
                 return da - db; // soonest first
             })
             .slice(0, 10);
@@ -291,9 +262,10 @@ const CompactNav = ({
                                                         {activityNotifications.map((a) => {
                                                             const id       = a.id || a._id;
                                                             const meta     = ACTIVITY_META[a.type] || ACTIVITY_META.Meeting;
-                                                            const dateStr  = a.date?.slice(0, 10);
-                                                            const todayStr = new Date().toISOString().slice(0, 10);
-                                                            const overdue  = dateStr < todayStr;
+                                                            const dt       = getActivityDateTime(a);
+                                                            const dateStr  = toLocalDateKey(dt);
+                                                            const todayStr = toLocalDateKey(new Date());
+                                                            const overdue  = !!dateStr && dateStr < todayStr;
                                                             const label    = fmtActivityDate(a.date, a.time);
                                                             return (
                                                                 <Dropdown.Item key={`act-${id}`} as={Link} to="/apps/contacts/contact-list">

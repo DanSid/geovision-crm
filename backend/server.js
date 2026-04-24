@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const morgan = require('morgan');
 const routes = require('./routes');
+const { seedUsers } = require('./routes/auth');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -45,6 +46,7 @@ const connectDB = async () => {
     }
 };
 
-connectDB().then(() => {
+connectDB().then(async () => {
+    await seedUsers();
     app.listen(PORT, () => console.log(`🚀  Server running on http://localhost:${PORT}`));
 });
