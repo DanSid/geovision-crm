@@ -9,25 +9,7 @@ import {
     DEFAULT_PERMISSIONS, loadUserPermissions,
 } from '../../utils/permissions';
 import { showToast } from '../../components/GlobalToast';
-
-// ── Load all users from localStorage (strips passwords) ─────────────────────
-const loadAllUsers = () => {
-    try {
-        const raw = localStorage.getItem('gv_crm_users');
-        return raw ? JSON.parse(raw).map(({ password: _p, ...u }) => u) : [];
-    } catch { return []; }
-};
-
-const persistAllUsers = (updatedUsers) => {
-    try {
-        const raw = JSON.parse(localStorage.getItem('gv_crm_users') || '[]');
-        const merged = raw.map(u => {
-            const match = updatedUsers.find(nu => nu.id === u.id);
-            return match ? { ...u, role: match.role } : u;
-        });
-        localStorage.setItem('gv_crm_users', JSON.stringify(merged));
-    } catch { /* ignore */ }
-};
+import { supabase } from '../../services/supabase';
 
 /* ══════════════════════════════════════════════════════════════════════════
    Settings
@@ -43,8 +25,28 @@ const Settings = ({ currentUser, permissions, setPermission, resetPermissions, s
         setDraft(prev => ({ ...prev, ...permissions }));
     }, [permissions]);
 
-    // ── User management ──
-    const [users, setUsers] = useState(loadAllUsers);
+    // ── User management — loaded from Supabase profiles on mount ──
+    const [users, setUsers] = useState([]);
+
+    useEffect(() => {
+        // Load all team members from the profiles table so every device sees everyone
+        supabase.from('profiles').select('id, data')
+            .then(({ data: rows }) => {
+                if (rows?.length) {
+                    const mapped = rows.map(r => ({ id: r.id, _id: r.id, ...r.data }));
+                    setUsers(mapped);
+                    // Also keep localStorage in sync for dropdowns
+                    try { localStorage.setItem('gv_crm_users', JSON.stringify(mapped)); } catch { /* ignore */ }
+                }
+            })
+            .catch(() => {
+                // Fall back to localStorage if Supabase is unreachable
+                try {
+                    const raw = localStorage.getItem('gv_crm_users');
+                    if (raw) setUsers(JSON.parse(raw).map(({ password: _p, ...u }) => u));
+                } catch { /* ignore */ }
+            });
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Per-user permissions modal ──
     const [showUserModal, setShowUserModal] = useState(false);
@@ -90,9 +92,17 @@ const Settings = ({ currentUser, permissions, setPermission, resetPermissions, s
         const newRole = currentRole === 'admin' ? 'user' : 'admin';
         const updated = users.map(u => u.id === userId ? { ...u, role: newRole } : u);
         setUsers(updated);
-        persistAllUsers(updated);
+        // Persist role change to Supabase profiles so it's visible on all devices
+        const targetUser = updated.find(u => u.id === userId);
+        if (targetUser) {
+            const { id: _id, _id: __id, ...profileData } = targetUser; // eslint-disable-line no-unused-vars
+            supabase.from('profiles').upsert(
+                { id: userId, data: { ...profileData, role: newRole }, updated_at: new Date().toISOString() },
+                { onConflict: 'id' }
+            ).catch(() => {/* ignore */});
+        }
         showToast(
-            `${updated.find(u => u.id === userId)?.name} is now ${newRole}.`,
+            `${targetUser?.name} is now ${newRole}.`,
             newRole === 'admin' ? 'success' : 'warning',
             'Role Updated',
         );
