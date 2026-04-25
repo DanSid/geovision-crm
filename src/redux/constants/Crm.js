@@ -1,3 +1,6 @@
+// ── Cross-entity purge (e.g. delete all activities/notes for a contact) ──────
+export const PURGE_ENTITY_RELATIONS = 'PURGE_ENTITY_RELATIONS';
+
 // ── CRUD constants ────────────────────────────────────────────────────────────
 
 // Contacts

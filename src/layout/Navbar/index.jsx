@@ -78,7 +78,7 @@ const SESSION_ALERTED = new Set();
 const CompactNav = ({
     navCollapsed, toggleCollapsedNav,
     currentUser, logoutUser,
-    tasks = [], opportunities = [], activities = [],
+    tasks = [], opportunities = [], activities = [], contacts = [],
 }) => {
     const { theme } = useTheme();
 
@@ -117,11 +117,18 @@ const CompactNav = ({
     useEffect(() => {
         checkRef.current = () => {
             activities
-                .filter(a => !a.completed && ACTIVITY_META[a.type] && isDue(a))
+                .filter(a => {
+                    if (a.completed || !ACTIVITY_META[a.type] || !isDue(a)) return false;
+                    // Skip activities for contacts that have been deleted
+                    if (a.entityType === 'contact' && a.entityId) {
+                        if (!contactIdSet.has(String(a.entityId))) return false;
+                    }
+                    return true;
+                })
                 .forEach(enqueue);
         };
         checkRef.current(); // run immediately on activities change
-    }, [activities]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [activities, contactIdSet]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const timer = setInterval(() => { checkRef.current?.(); }, 30 * 1000);
@@ -169,12 +176,22 @@ const CompactNav = ({
             });
     }, [opportunities]);
 
+    /* ── Build a Set of existing contact IDs for O(1) lookups ── */
+    const contactIdSet = useMemo(
+        () => new Set(contacts.map(c => String(c.id || c._id || ''))),
+        [contacts]
+    );
+
     /* ── Activity notifications (today or overdue) — includes In Progress & Completed ── */
     const activityNotifications = useMemo(() => {
         return activities
             .filter(a => {
                 if (!ACTIVITY_META[a.type]) return false;
                 if (a.completed) return false; // manually completed → no longer shown
+                // Skip orphaned activities whose linked contact was deleted
+                if (a.entityType === 'contact' && a.entityId) {
+                    if (!contactIdSet.has(String(a.entityId))) return false;
+                }
                 const status = getActivityStatus(a);
                 if (status === 'upcoming') return false; // future → not in bell
                 return isActivityTodayOrOverdue(a);
@@ -185,7 +202,7 @@ const CompactNav = ({
                 return da - db; // soonest first
             })
             .slice(0, 10);
-    }, [activities]);
+    }, [activities, contactIdSet]);
 
     const notifCount = dueNotifications.length + oppNotifications.length + activityNotifications.length;
 
@@ -526,12 +543,13 @@ const CompactNav = ({
     );
 };
 
-const mapStateToProps = ({ theme, auth, tasks, opportunities, activities }) => ({
+const mapStateToProps = ({ theme, auth, tasks, opportunities, activities, contacts }) => ({
     navCollapsed: theme.navCollapsed,
     currentUser: auth.currentUser,
     tasks: tasks || [],
     opportunities: opportunities || [],
     activities: activities || [],
+    contacts: contacts || [],
 });
 
 export default connect(mapStateToProps, { toggleCollapsedNav, logoutUser })(CompactNav);

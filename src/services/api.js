@@ -107,6 +107,16 @@ export const vehiclesApi          = buildCrud('vehicles');
 export const maintenanceApi       = buildCrud('maintenance');
 export const requestsApi          = buildCrud('requests');
 
+/* ── Cascade helper: delete all rows where data->>'entityId' = entityId ─── */
+export const deleteByEntityId = async (table, entityId) => {
+    if (!entityId) return;
+    const { error } = await supabase
+        .from(table)
+        .delete()
+        .filter('data->>entityId', 'eq', String(entityId));
+    if (error) console.warn(`[${table}] deleteByEntityId(${entityId}):`, error.message);
+};
+
 /* ── Settings: single JSONB document per string key ─────────────────────── */
 export const settingsApi = {
     get: async (key) => {

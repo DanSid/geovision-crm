@@ -20,6 +20,7 @@ import {
     ADD_VEHICLE, UPDATE_VEHICLE, DELETE_VEHICLE, INIT_VEHICLES,
     ADD_MAINTENANCE, UPDATE_MAINTENANCE, DELETE_MAINTENANCE, INIT_MAINTENANCE,
     ADD_REQUEST, UPDATE_REQUEST, DELETE_REQUEST, INIT_REQUESTS,
+    PURGE_ENTITY_RELATIONS,
 } from '../constants/Crm';
 import { loadGlobalPermissions, saveGlobalPermissions, DEFAULT_PERMISSIONS } from '../../utils/permissions';
 
@@ -70,6 +71,13 @@ const makeArrayReducer = (key, ADD, UPDATE, DELETE, INIT, extra = {}) => {
                 next = state.filter(i => i.id !== action.payload);
                 save(key, next);
                 return next;
+            case PURGE_ENTITY_RELATIONS: {
+                const { entityId } = action.payload || {};
+                if (!entityId) return state;
+                next = state.filter(i => String(i.entityId || '') !== String(entityId));
+                if (next.length !== state.length) save(key, next);
+                return next;
+            }
             default:
                 if (extra[action.type]) return extra[action.type](state, action, save, key);
                 return state;

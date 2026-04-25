@@ -20,6 +20,7 @@ import {
     ADD_VEHICLE, UPDATE_VEHICLE, DELETE_VEHICLE, INIT_VEHICLES,
     ADD_MAINTENANCE, UPDATE_MAINTENANCE, DELETE_MAINTENANCE, INIT_MAINTENANCE,
     ADD_REQUEST, UPDATE_REQUEST, DELETE_REQUEST, INIT_REQUESTS,
+    PURGE_ENTITY_RELATIONS,
 } from '../constants/Crm';
 
 import {
@@ -27,6 +28,7 @@ import {
     activitiesApi, notesApi, historyApi, documentsApi, secondaryContactsApi,
     invoicesApi, tasksApi, boardsApi, equipmentApi, stockLocationsApi,
     crewMembersApi, vehiclesApi, maintenanceApi, requestsApi, settingsApi,
+    deleteByEntityId,
 } from '../../services/api';
 import { isActivityDueNow } from '../../utils/activitySchedule';
 
@@ -73,7 +75,26 @@ const crudThunks = (apiService, ADD, UPDATE, DELETE) => ({
 const contactCrud = crudThunks(contactsApi, ADD_CONTACT, UPDATE_CONTACT, DELETE_CONTACT);
 export const addContact    = contactCrud.add;
 export const updateContact = contactCrud.update;
-export const deleteContact = contactCrud.remove;
+
+/**
+ * deleteContact — cascade thunk.
+ * Removes the contact row AND all related rows (activities, notes, history,
+ * documents, secondary contacts) from Supabase, then purges them from Redux.
+ */
+export const deleteContact = (id) => async (dispatch) => {
+    // 1. Delete the contact itself from Supabase (best-effort)
+    try { await contactsApi.remove(id); } catch { /* still remove locally */ }
+
+    // 2. Delete all related rows in Supabase (entityId = contact's id)
+    const relatedTables = ['activities', 'notes', 'history', 'documents', 'secondary_contacts'];
+    await Promise.allSettled(relatedTables.map(t => deleteByEntityId(t, id)));
+
+    // 3. Remove contact from Redux
+    dispatch({ type: DELETE_CONTACT, payload: id });
+
+    // 4. Remove all related entities from Redux in one action
+    dispatch({ type: PURGE_ENTITY_RELATIONS, payload: { entityId: id } });
+};
 
 // ── OPPORTUNITIES ─────────────────────────────────────────────────────────────
 const oppCrud = crudThunks(opportunitiesApi, ADD_OPPORTUNITY, UPDATE_OPPORTUNITY, DELETE_OPPORTUNITY);
