@@ -3,12 +3,22 @@ import { Badge, Button, Form, Modal, Table } from 'react-bootstrap';
 import { Edit2, Plus, Trash2 } from 'react-feather';
 import { connect } from 'react-redux';
 import { addActivityWithHistory, updateActivity, deleteActivity } from '../../../../redux/action/Crm';
+import ActivityDateTimePicker from '../../../../components/ActivityDateTimePicker';
+import { getActivityStatus } from '../../../../utils/activitySchedule';
 
 const ACTIVITY_TYPES = ['Call', 'Meeting', 'Email', 'To-Do'];
 const PRIORITIES     = ['Low', 'Medium', 'High', 'Urgent'];
 const DURATIONS      = ['5 Minutes','10 Minutes','15 Minutes','30 Minutes','1 Hour','2 Hours','All Day'];
 
 const priorityBg = { Low: 'secondary', Medium: 'info', High: 'warning', Urgent: 'danger' };
+
+const STATUS_META = {
+    upcoming:       { label: 'Upcoming',    bg: 'secondary' },
+    in_progress:    { label: 'In Progress', bg: 'primary'   },
+    completed_auto: { label: 'Completed',   bg: 'success'   },
+    completed:      { label: 'Completed',   bg: 'success'   },
+    overdue:        { label: 'Overdue',     bg: 'danger'    },
+};
 
 const emptyForm = {
     type: 'Call', title: '', date: '', time: '', duration: '30 Minutes',
@@ -181,6 +191,7 @@ const ActivitiesTab = ({
                                 <th style={{ width: 80 }}>Type</th>
                                 <th style={{ width: 110 }}>Date</th>
                                 <th style={{ width: 90 }}>Time</th>
+                                <th style={{ width: 95 }}>Status</th>
                                 <th style={{ width: 80 }}>Priority</th>
                                 <th>Title</th>
                                 <th style={{ width: 180 }}>Notes</th>
@@ -189,13 +200,21 @@ const ActivitiesTab = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {myActivities.map(a => (
+                            {myActivities.map(a => {
+                                const status = getActivityStatus(a);
+                                const sm = STATUS_META[status] || STATUS_META.upcoming;
+                                return (
                                 <tr key={a.id || a._id}>
                                     <td>
                                         <Badge bg="light" text="dark" className="border">{a.type}</Badge>
                                     </td>
                                     <td className="fs-7">{fmtDate(a.date || a.createdAt)}</td>
                                     <td className="fs-7">{fmtTime(a.time, a.date)}</td>
+                                    <td>
+                                        <Badge bg={sm.bg} className="fw-normal" style={{ fontSize: 10 }}>
+                                            {sm.label}
+                                        </Badge>
+                                    </td>
                                     <td>
                                         {a.priority ? (
                                             <Badge bg={priorityBg[a.priority] || 'secondary'} className="fw-normal">
@@ -239,7 +258,8 @@ const ActivitiesTab = ({
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </Table>
                 </div>
@@ -276,23 +296,19 @@ const ActivitiesTab = ({
                                 />
                                 <Form.Control.Feedback type="invalid">{errors.title}</Form.Control.Feedback>
                             </div>
-                            <div className="col-md-4">
-                                <Form.Label className="fs-7">Start Date <span className="text-danger">*</span></Form.Label>
-                                <Form.Control
-                                    size="sm" type="date"
-                                    value={form.date}
-                                    onChange={e => set('date', e.target.value)}
-                                    isInvalid={!!errors.date}
+                            <div className="col-md-8">
+                                <Form.Label className="fs-7">Date &amp; Time <span className="text-danger">*</span></Form.Label>
+                                <ActivityDateTimePicker
+                                    date={form.date}
+                                    time={form.time}
+                                    onChange={({ date, time }) => {
+                                        set('date', date);
+                                        set('time', time);
+                                    }}
                                 />
-                                <Form.Control.Feedback type="invalid">{errors.date}</Form.Control.Feedback>
-                            </div>
-                            <div className="col-md-4">
-                                <Form.Label className="fs-7">Time</Form.Label>
-                                <Form.Control
-                                    size="sm" type="time"
-                                    value={form.time}
-                                    onChange={e => set('time', e.target.value)}
-                                />
+                                {errors.date && (
+                                    <div className="text-danger fs-7 mt-1">{errors.date}</div>
+                                )}
                             </div>
                             <div className="col-md-4">
                                 <Form.Label className="fs-7">Duration</Form.Label>

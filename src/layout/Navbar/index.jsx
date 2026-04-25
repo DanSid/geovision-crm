@@ -16,6 +16,7 @@ import { ThemeSwitcher } from '../../utils/theme-provider/theme-switcher';
 import { useTheme } from '../../utils/theme-provider/theme-provider';
 import {
     getActivityDateTime,
+    getActivityStatus,
     isActivityDueNow,
     isActivityTodayOrOverdue,
     toLocalDateKey,
@@ -168,10 +169,16 @@ const CompactNav = ({
             });
     }, [opportunities]);
 
-    /* ── Activity notifications (today or overdue, not completed) ── */
+    /* ── Activity notifications (today or overdue) — includes In Progress & Completed ── */
     const activityNotifications = useMemo(() => {
         return activities
-            .filter(a => !a.completed && ACTIVITY_META[a.type] && isActivityTodayOrOverdue(a))
+            .filter(a => {
+                if (!ACTIVITY_META[a.type]) return false;
+                if (a.completed) return false; // manually completed → no longer shown
+                const status = getActivityStatus(a);
+                if (status === 'upcoming') return false; // future → not in bell
+                return isActivityTodayOrOverdue(a);
+            })
             .sort((a, b) => {
                 const da = getActivityDateTime(a) || new Date(a.createdAt || 0);
                 const db = getActivityDateTime(b) || new Date(b.createdAt || 0);
@@ -262,16 +269,28 @@ const CompactNav = ({
                                                         {activityNotifications.map((a) => {
                                                             const id       = a.id || a._id;
                                                             const meta     = ACTIVITY_META[a.type] || ACTIVITY_META.Meeting;
-                                                            const dt       = getActivityDateTime(a);
-                                                            const dateStr  = toLocalDateKey(dt);
-                                                            const todayStr = toLocalDateKey(new Date());
-                                                            const overdue  = !!dateStr && dateStr < todayStr;
                                                             const label    = fmtActivityDate(a.date, a.time);
+                                                            const status   = getActivityStatus(a);
+
+                                                            // Badge config per status
+                                                            const badgeCfg = status === 'in_progress'
+                                                                ? { bg: 'primary',  text: `${a.type} — In Progress` }
+                                                                : status === 'completed_auto'
+                                                                ? { bg: 'success',  text: `${a.type} — Completed` }
+                                                                : status === 'overdue'
+                                                                ? { bg: 'danger',   text: `${a.type} Overdue` }
+                                                                : { bg: meta.bg,    text: `${a.type} Today` };
+
+                                                            const avatarBg = status === 'in_progress' ? 'primary'
+                                                                : status === 'completed_auto' ? 'success'
+                                                                : status === 'overdue' ? 'danger'
+                                                                : meta.bg;
+
                                                             return (
                                                                 <Dropdown.Item key={`act-${id}`} as={Link} to="/apps/contacts/contact-list">
                                                                     <div className="media">
                                                                         <div className="media-head">
-                                                                            <div className={`avatar avatar-icon avatar-sm avatar-${overdue ? 'danger' : meta.bg} avatar-rounded`}>
+                                                                            <div className={`avatar avatar-icon avatar-sm avatar-${avatarBg} avatar-rounded`}>
                                                                                 <span className="initial-wrap">
                                                                                     <span className="feather-icon">{meta.icon}</span>
                                                                                 </span>
@@ -282,8 +301,8 @@ const CompactNav = ({
                                                                                 <strong>{a.title || a.type}</strong>
                                                                             </div>
                                                                             <div className="notifications-info">
-                                                                                <HkBadge bg={overdue ? 'danger' : meta.bg} soft>
-                                                                                    {overdue ? `${a.type} overdue` : `${a.type} today`}
+                                                                                <HkBadge bg={badgeCfg.bg} soft>
+                                                                                    {badgeCfg.text}
                                                                                 </HkBadge>
                                                                                 <div className="notifications-time">{label}</div>
                                                                             </div>

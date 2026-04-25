@@ -7,6 +7,7 @@ import {
 } from 'react-feather';
 import { getContactName } from '../../../utils/contactWorkspace';
 import { addNote, addTask, addActivity, addHistoryEntry } from '../../../redux/action/Crm';
+import ActivityDateTimePicker from '../../../components/ActivityDateTimePicker';
 
 /* ── Tiny re-usable modal shell ────────────────────────────────────────── */
 const QModal = ({ show, onHide, title, onSave, saveLabel = 'Save', disabled, children }) => (
@@ -375,24 +376,14 @@ const ContactActionBar = ({
                         autoFocus
                     />
                 </Form.Group>
-                <div className="row g-2 mb-3">
-                    <div className="col-6">
-                        <Form.Label className="fs-7 fw-semibold">Date</Form.Label>
-                        <Form.Control
-                            type="date"
-                            value={fd.date || ''}
-                            onChange={e => set('date', e.target.value)}
-                        />
-                    </div>
-                    <div className="col-6">
-                        <Form.Label className="fs-7 fw-semibold">Time</Form.Label>
-                        <Form.Control
-                            type="time"
-                            value={fd.time || ''}
-                            onChange={e => set('time', e.target.value)}
-                        />
-                    </div>
-                </div>
+                <Form.Group className="mb-3">
+                    <Form.Label className="fs-7 fw-semibold">Date &amp; Time</Form.Label>
+                    <ActivityDateTimePicker
+                        date={fd.date || ''}
+                        time={fd.time || ''}
+                        onChange={({ date, time }) => { set('date', date); set('time', time); }}
+                    />
+                </Form.Group>
                 <div className="row g-2 mb-3">
                     <div className="col-6">
                         <Form.Label className="fs-7 fw-semibold">Duration</Form.Label>
@@ -434,24 +425,14 @@ const ContactActionBar = ({
                         autoFocus
                     />
                 </Form.Group>
-                <div className="row g-2 mb-3">
-                    <div className="col-6">
-                        <Form.Label className="fs-7 fw-semibold">Date</Form.Label>
-                        <Form.Control
-                            type="date"
-                            value={fd.date || ''}
-                            onChange={e => set('date', e.target.value)}
-                        />
-                    </div>
-                    <div className="col-6">
-                        <Form.Label className="fs-7 fw-semibold">Time</Form.Label>
-                        <Form.Control
-                            type="time"
-                            value={fd.time || ''}
-                            onChange={e => set('time', e.target.value)}
-                        />
-                    </div>
-                </div>
+                <Form.Group className="mb-3">
+                    <Form.Label className="fs-7 fw-semibold">Date &amp; Time</Form.Label>
+                    <ActivityDateTimePicker
+                        date={fd.date || ''}
+                        time={fd.time || ''}
+                        onChange={({ date, time }) => { set('date', date); set('time', time); }}
+                    />
+                </Form.Group>
                 <div className="row g-2 mb-3">
                     <div className="col-6">
                         <Form.Label className="fs-7 fw-semibold">Duration</Form.Label>
