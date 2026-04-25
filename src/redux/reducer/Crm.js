@@ -50,10 +50,18 @@ const makeArrayReducer = (key, ADD, UPDATE, DELETE, INIT, extra = {}) => {
             case INIT:
                 save(key, action.payload);
                 return action.payload;
-            case ADD:
-                next = [...state, action.payload];
+            case ADD: {
+                // Upsert: if an item with this id already exists (e.g. dispatched by
+                // both the thunk AND the Supabase real-time subscription), replace it
+                // instead of appending a duplicate.
+                const incoming = action.payload;
+                const alreadyIn = incoming?.id && state.some(i => i.id === incoming.id);
+                next = alreadyIn
+                    ? state.map(i => i.id === incoming.id ? incoming : i)
+                    : [...state, incoming];
                 save(key, next);
                 return next;
+            }
             case UPDATE:
                 next = state.map(i => i.id === action.payload.id ? action.payload : i);
                 save(key, next);

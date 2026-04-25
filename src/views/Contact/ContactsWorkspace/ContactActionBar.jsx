@@ -80,7 +80,8 @@ const ContactActionBar = ({
             type,
             title:        fd.title || `${type} with ${name}`,
             description:  fd.description || '',
-            date:         fd.date || new Date().toISOString(),
+            date:         fd.date || new Date().toISOString().split('T')[0],
+            time:         fd.time || '',
             priority:     fd.priority || 'Medium',
             duration:     fd.duration || '',
             contactName:  name,
@@ -375,27 +376,37 @@ const ContactActionBar = ({
                     />
                 </Form.Group>
                 <div className="row g-2 mb-3">
-                    <div className="col-8">
-                        <Form.Label className="fs-7 fw-semibold">Date &amp; Time</Form.Label>
+                    <div className="col-6">
+                        <Form.Label className="fs-7 fw-semibold">Date</Form.Label>
                         <Form.Control
-                            type="datetime-local"
+                            type="date"
                             value={fd.date || ''}
                             onChange={e => set('date', e.target.value)}
                         />
                     </div>
-                    <div className="col-4">
+                    <div className="col-6">
+                        <Form.Label className="fs-7 fw-semibold">Time</Form.Label>
+                        <Form.Control
+                            type="time"
+                            value={fd.time || ''}
+                            onChange={e => set('time', e.target.value)}
+                        />
+                    </div>
+                </div>
+                <div className="row g-2 mb-3">
+                    <div className="col-6">
                         <Form.Label className="fs-7 fw-semibold">Duration</Form.Label>
                         <Form.Select value={fd.duration || '30 Minutes'} onChange={e => set('duration', e.target.value)}>
                             {['15 Minutes','30 Minutes','1 Hour','2 Hours','All Day'].map(d => <option key={d}>{d}</option>)}
                         </Form.Select>
                     </div>
+                    <div className="col-6">
+                        <Form.Label className="fs-7 fw-semibold">Priority</Form.Label>
+                        <Form.Select value={fd.priority || 'Medium'} onChange={e => set('priority', e.target.value)}>
+                            {['Low','Medium','High','Urgent'].map(p => <option key={p}>{p}</option>)}
+                        </Form.Select>
+                    </div>
                 </div>
-                <Form.Group className="mb-3">
-                    <Form.Label className="fs-7 fw-semibold">Priority</Form.Label>
-                    <Form.Select value={fd.priority || 'Medium'} onChange={e => set('priority', e.target.value)}>
-                        {['Low','Medium','High','Urgent'].map(p => <option key={p}>{p}</option>)}
-                    </Form.Select>
-                </Form.Group>
                 <Form.Group>
                     <Form.Label className="fs-7 fw-semibold">Notes</Form.Label>
                     <Form.Control
@@ -424,27 +435,37 @@ const ContactActionBar = ({
                     />
                 </Form.Group>
                 <div className="row g-2 mb-3">
-                    <div className="col-8">
-                        <Form.Label className="fs-7 fw-semibold">Date &amp; Time</Form.Label>
+                    <div className="col-6">
+                        <Form.Label className="fs-7 fw-semibold">Date</Form.Label>
                         <Form.Control
-                            type="datetime-local"
+                            type="date"
                             value={fd.date || ''}
                             onChange={e => set('date', e.target.value)}
                         />
                     </div>
-                    <div className="col-4">
+                    <div className="col-6">
+                        <Form.Label className="fs-7 fw-semibold">Time</Form.Label>
+                        <Form.Control
+                            type="time"
+                            value={fd.time || ''}
+                            onChange={e => set('time', e.target.value)}
+                        />
+                    </div>
+                </div>
+                <div className="row g-2 mb-3">
+                    <div className="col-6">
                         <Form.Label className="fs-7 fw-semibold">Duration</Form.Label>
                         <Form.Select value={fd.duration || '10 Minutes'} onChange={e => set('duration', e.target.value)}>
                             {['5 Minutes','10 Minutes','15 Minutes','30 Minutes','1 Hour','2 Hours'].map(d => <option key={d}>{d}</option>)}
                         </Form.Select>
                     </div>
+                    <div className="col-6">
+                        <Form.Label className="fs-7 fw-semibold">Priority</Form.Label>
+                        <Form.Select value={fd.priority || 'Low'} onChange={e => set('priority', e.target.value)}>
+                            {['Low','Medium','High','Urgent'].map(p => <option key={p}>{p}</option>)}
+                        </Form.Select>
+                    </div>
                 </div>
-                <Form.Group className="mb-3">
-                    <Form.Label className="fs-7 fw-semibold">Priority</Form.Label>
-                    <Form.Select value={fd.priority || 'Low'} onChange={e => set('priority', e.target.value)}>
-                        {['Low','Medium','High','Urgent'].map(p => <option key={p}>{p}</option>)}
-                    </Form.Select>
-                </Form.Group>
                 <Form.Group>
                     <Form.Label className="fs-7 fw-semibold">Call Notes</Form.Label>
                     <Form.Control
