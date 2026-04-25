@@ -3,10 +3,10 @@ import { connect } from 'react-redux';
 import {
     Button, Card, Col, Container, Form, Row, Badge, Modal, Table,
 } from 'react-bootstrap';
-import { setPermission, resetPermissions } from '../../redux/action/Crm';
+import { setPermission, resetPermissions, saveUserPermissionsAction } from '../../redux/action/Crm';
 import {
     SECTION_KEYS, SECTION_LABELS, SECTION_DESCRIPTIONS, SECTION_ICONS,
-    DEFAULT_PERMISSIONS, saveUserPermissions, loadUserPermissions,
+    DEFAULT_PERMISSIONS, loadUserPermissions,
 } from '../../utils/permissions';
 import { showToast } from '../../components/GlobalToast';
 
@@ -32,7 +32,7 @@ const persistAllUsers = (updatedUsers) => {
 /* ══════════════════════════════════════════════════════════════════════════
    Settings
 ══════════════════════════════════════════════════════════════════════════ */
-const Settings = ({ currentUser, permissions, setPermission, resetPermissions }) => {
+const Settings = ({ currentUser, permissions, setPermission, resetPermissions, saveUserPermissionsAction }) => {
     const isAdmin = currentUser?.role === 'admin';
 
     // ── Global permissions (local draft — applied on button click) ──
@@ -112,7 +112,8 @@ const Settings = ({ currentUser, permissions, setPermission, resetPermissions })
     };
 
     const handleSaveUserPerms = () => {
-        saveUserPermissions(editingUser.id, userDraft);
+        // Save to Supabase + Redux (works on all devices, not just admin's browser)
+        saveUserPermissionsAction(editingUser.id, userDraft);
         setShowUserModal(false);
         showToast(
             `Permissions saved for ${editingUser.name}.`,
@@ -377,4 +378,4 @@ const mapStateToProps = ({ auth, permissions }) => ({
     currentUser: auth.currentUser,
     permissions,
 });
-export default connect(mapStateToProps, { setPermission, resetPermissions })(Settings);
+export default connect(mapStateToProps, { setPermission, resetPermissions, saveUserPermissionsAction })(Settings);

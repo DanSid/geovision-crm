@@ -3,7 +3,7 @@ import {
     ADD_OPPORTUNITY, UPDATE_OPPORTUNITY, DELETE_OPPORTUNITY, INIT_OPPORTUNITIES,
     ADD_CUSTOMER, UPDATE_CUSTOMER, DELETE_CUSTOMER, INIT_CUSTOMERS,
     ADD_TASK, UPDATE_TASK, DELETE_TASK, TOGGLE_TASK, INIT_TASKS,
-    SET_PERMISSION, RESET_PERMISSIONS, INIT_PERMISSIONS,
+    SET_PERMISSION, RESET_PERMISSIONS, INIT_PERMISSIONS, APPLY_USER_PERMISSIONS,
     ADD_BOARD, UPDATE_BOARD, DELETE_BOARD, INIT_BOARDS,
     SET_PIPELINE, INIT_PIPELINE,
     ADD_COMPANY, UPDATE_COMPANY, DELETE_COMPANY, INIT_COMPANIES,
@@ -183,6 +183,20 @@ export const permissionsReducer = (state = loadPermissions(), action) => {
         case RESET_PERMISSIONS:
             saveGlobalPermissions(defaultPermissions);
             return { ...defaultPermissions };
+        default:
+            return state;
+    }
+};
+
+// ── Per-User Permissions Reducer ──────────────────────────────────────────────
+// Stores per-user permission overrides keyed by userId.
+// These come from Supabase (synced on login) so they work on every device.
+export const userPermissionsReducer = (state = {}, action) => {
+    switch (action.type) {
+        case APPLY_USER_PERMISSIONS: {
+            const { userId, perms } = action.payload;
+            return { ...state, [userId]: perms };
+        }
         default:
             return state;
     }

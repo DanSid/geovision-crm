@@ -26,9 +26,10 @@ export const TOGGLE_TASK = 'TOGGLE_TASK';
 export const INIT_TASKS  = 'INIT_TASKS';
 
 // Permissions
-export const SET_PERMISSION   = 'SET_PERMISSION';
-export const RESET_PERMISSIONS= 'RESET_PERMISSIONS';
-export const INIT_PERMISSIONS = 'INIT_PERMISSIONS';
+export const SET_PERMISSION         = 'SET_PERMISSION';
+export const RESET_PERMISSIONS      = 'RESET_PERMISSIONS';
+export const INIT_PERMISSIONS       = 'INIT_PERMISSIONS';
+export const APPLY_USER_PERMISSIONS = 'APPLY_USER_PERMISSIONS';
 
 // Boards (Scrumboard)
 export const ADD_BOARD    = 'ADD_BOARD';

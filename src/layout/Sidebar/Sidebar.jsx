@@ -11,7 +11,7 @@ import classNames from 'classnames';
 import { useWindowWidth } from '@react-hook/window-size';
 import { getEffectivePermissions, GROUP_TO_KEY } from '../../utils/permissions';
 
-const Sidebar = ({ navCollapsed, toggleCollapsedNav, currentUser, permissions }) => {
+const Sidebar = ({ navCollapsed, toggleCollapsedNav, currentUser, permissions, userPermissions }) => {
 
     const [activeMenu, setActiveMenu] = useState();
     const [activeSubMenu, setActiveSubMenu] = useState();
@@ -19,8 +19,9 @@ const Sidebar = ({ navCollapsed, toggleCollapsedNav, currentUser, permissions })
     const windowWidth = useWindowWidth();
 
     // ── Compute effective permissions for the signed-in user ──────────────────
-    // Admin always sees everything; per-user overrides apply first, then global.
-    const effectivePerms = getEffectivePermissions(currentUser, permissions);
+    // Admin always sees everything; per-user overrides (from Supabase via Redux)
+    // apply first, then global. userPermissions is keyed by userId.
+    const effectivePerms = getEffectivePermissions(currentUser, permissions, userPermissions);
 
     // Filter top-level sidebar groups by section key
     const visibleMenu = SidebarMenu.filter(routes => {
@@ -144,9 +145,9 @@ const Sidebar = ({ navCollapsed, toggleCollapsedNav, currentUser, permissions })
     )
 }
 
-const mapStateToProps = ({ theme, auth, permissions }) => {
+const mapStateToProps = ({ theme, auth, permissions, userPermissions }) => {
     const { navCollapsed } = theme;
-    return { navCollapsed, currentUser: auth.currentUser, permissions }
+    return { navCollapsed, currentUser: auth.currentUser, permissions, userPermissions: userPermissions || {} }
 };
 
 export default connect(mapStateToProps, { toggleCollapsedNav })(Sidebar);

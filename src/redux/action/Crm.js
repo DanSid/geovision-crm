@@ -3,7 +3,7 @@ import {
     ADD_OPPORTUNITY, UPDATE_OPPORTUNITY, DELETE_OPPORTUNITY, INIT_OPPORTUNITIES,
     ADD_CUSTOMER, UPDATE_CUSTOMER, DELETE_CUSTOMER, INIT_CUSTOMERS,
     ADD_TASK, UPDATE_TASK, DELETE_TASK, TOGGLE_TASK, INIT_TASKS,
-    SET_PERMISSION, RESET_PERMISSIONS, INIT_PERMISSIONS,
+    SET_PERMISSION, RESET_PERMISSIONS, INIT_PERMISSIONS, APPLY_USER_PERMISSIONS,
     ADD_BOARD, UPDATE_BOARD, DELETE_BOARD, INIT_BOARDS,
     SET_PIPELINE, INIT_PIPELINE,
     ADD_COMPANY, UPDATE_COMPANY, DELETE_COMPANY, INIT_COMPANIES,
@@ -113,6 +113,32 @@ export const setPermission = (key, value) => async (dispatch, getState) => {
 export const resetPermissions = () => async (dispatch) => {
     dispatch({ type: RESET_PERMISSIONS });
     try { await settingsApi.set('permissions', null); } catch { /* offline */ }
+};
+
+/**
+ * saveUserPermissionsAction — called by admin when saving per-user permissions.
+ * Saves to BOTH Supabase settings table AND Redux/localStorage so the change
+ * is visible on every device immediately.
+ */
+export const saveUserPermissionsAction = (userId, perms) => async (dispatch) => {
+    // Update Redux state immediately (triggers Sidebar re-render for all connected components)
+    dispatch({ type: APPLY_USER_PERMISSIONS, payload: { userId, perms } });
+    // Persist to Supabase so any device can retrieve it on next login
+    try { await settingsApi.set(`user_perms_${userId}`, perms); } catch { /* offline */ }
+};
+
+/**
+ * fetchUserPermissions — called after login to pull per-user permissions from
+ * Supabase into Redux. This makes restrictions work on every device/browser.
+ */
+export const fetchUserPermissions = (userId) => async (dispatch) => {
+    if (!userId) return;
+    try {
+        const result = await settingsApi.get(`user_perms_${userId}`);
+        if (result?.data) {
+            dispatch({ type: APPLY_USER_PERMISSIONS, payload: { userId, perms: result.data } });
+        }
+    } catch { /* ignore — falls back to global permissions */ }
 };
 
 // ── BOARDS ────────────────────────────────────────────────────────────────────

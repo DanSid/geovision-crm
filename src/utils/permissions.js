@@ -142,14 +142,20 @@ export const clearUserPermissions = (userId) => {
 
 // ── Effective permissions for a given user ────────────────────────────────────
 // Admin   → always all true (bypasses every check)
-// Non-admin with per-user overrides → per-user perms
+// Non-admin with per-user overrides → per-user perms (Redux > localStorage > global)
 // Non-admin without per-user perms  → global perms
-export const getEffectivePermissions = (user, globalPerms) => {
+//
+// userOverrides: the Redux `userPermissions` state object (keyed by userId).
+//   Passed in from Sidebar so that Supabase-synced changes trigger re-renders.
+export const getEffectivePermissions = (user, globalPerms, userOverrides = {}) => {
     if (!user || user.role === 'admin') {
         return Object.fromEntries(SECTION_KEYS.map(k => [k, true]));
     }
-    const userPerms = loadUserPermissions(user.id);
-    if (userPerms) return { ...DEFAULT_PERMISSIONS, ...userPerms };
+    // Priority: Redux (Supabase-synced) > localStorage cache > global defaults
+    const fromRedux = user.id ? userOverrides[user.id] : null;
+    const fromLocal = loadUserPermissions(user.id);
+    const perms = fromRedux || fromLocal;
+    if (perms) return { ...DEFAULT_PERMISSIONS, ...perms };
     return { ...DEFAULT_PERMISSIONS, ...(globalPerms || {}) };
 };
 

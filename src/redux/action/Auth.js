@@ -6,12 +6,16 @@
  *
  * Redux currentUser shape stays unchanged:
  *   { id, name, username, email, role, photo }
+ *
+ * profiles table: one row per user so all team members are visible
+ * to each other (e.g. "Assign to" dropdowns). Upserted on every login.
  */
 import { supabase } from '../../services/supabase';
 import {
     AUTH_ERROR, CLEAR_AUTH_ERROR,
     LOGIN_SUCCESS, LOGOUT, REGISTER_SUCCESS, UPDATE_PROFILE,
 } from '../constants/Auth';
+import { fetchUserPermissions } from './Crm';
 
 /* ── localStorage keys (session persistence / bootstrap) ─────────────────── */
 const CURRENT_USER_KEYS = ['gv_crm_current_user', 'crm_current_user', 'currentUser', 'auth_user'];
@@ -38,6 +42,28 @@ const toReduxUser = (supaUser) => {
         role:     m.role    || 'user',
         photo:    m.photo   || m.avatar_url || '',
     };
+};
+
+/* ── Sync profiles table so team members appear in dropdowns ─────────────── */
+const syncProfiles = async (user) => {
+    try {
+        // Upsert own profile row
+        await supabase.from('profiles').upsert(
+            {
+                id:         user.id,
+                data:       { name: user.name, username: user.username, email: user.email, role: user.role, photo: user.photo },
+                updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'id' }
+        );
+
+        // Fetch all profiles → cache in localStorage for loadUsers()
+        const { data: rows } = await supabase.from('profiles').select('id, data');
+        if (rows?.length) {
+            const users = rows.map((r) => ({ id: r.id, _id: r.id, ...r.data }));
+            try { localStorage.setItem('gv_crm_users', JSON.stringify(users)); } catch { /* ignore */ }
+        }
+    } catch { /* ignore — dropdowns fall back to current user */ }
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -71,6 +97,10 @@ export const syncSupabaseSession = () => async (dispatch) => {
             const user = toReduxUser(session.user);
             persistCurrentUser(user);
             dispatch({ type: LOGIN_SUCCESS, payload: user });
+            // Refresh team member cache silently
+            syncProfiles(user).catch(() => {});
+            // Load this user's permission restrictions from Supabase
+            dispatch(fetchUserPermissions(user.id));
         }
     } catch { /* ignore — localStorage bootstrap is the fallback */ }
 };
@@ -94,6 +124,12 @@ export const loginUser = (email, password) => async (dispatch) => {
         const user = toReduxUser(data.user);
         persistCurrentUser(user);
         dispatch({ type: LOGIN_SUCCESS, payload: user });
+
+        // Upsert profile + refresh team member list in background
+        syncProfiles(user).catch(() => {});
+        // Load this user's permission restrictions from Supabase into Redux
+        dispatch(fetchUserPermissions(user.id));
+
         return true;
     } catch {
         dispatch({ type: AUTH_ERROR, payload: 'Login failed. Please try again.' });
@@ -133,6 +169,10 @@ export const registerUser = (userData) => async (dispatch) => {
         const user = toReduxUser(data.user);
         persistCurrentUser(user);
         dispatch({ type: REGISTER_SUCCESS, payload: user });
+
+        // Register profile so they appear in team dropdowns
+        syncProfiles(user).catch(() => {});
+
         return true;
     } catch {
         dispatch({ type: AUTH_ERROR, payload: 'Registration failed. Please try again.' });
@@ -163,6 +203,8 @@ export const updateCurrentUser = (updates) => async (dispatch, getState) => {
             const updated = { ...auth.currentUser, ...toReduxUser(data.user) };
             persistCurrentUser(updated);
             dispatch({ type: UPDATE_PROFILE, payload: updated });
+            // Keep profile table in sync
+            syncProfiles(updated).catch(() => {});
         }
     } catch { /* ignore */ }
 };
@@ -172,10 +214,11 @@ export const clearAuthError = () => ({ type: CLEAR_AUTH_ERROR });
 /* ═══════════════════════════════════════════════════════════════════════════
    loadUsers — synchronous helper used by task/scrumboard dropdowns to list
    team members for "Assign to" / "Reporter" fields.
-   Reads from localStorage (populated at login). Falls back to current user.
+   Reads from localStorage (populated by syncProfiles on login).
+   Falls back to current user if cache is empty.
 ═══════════════════════════════════════════════════════════════════════════ */
 const USER_KEYS = ['gv_crm_users', 'crm_users', 'users'];
-const DEFAULT_ADMIN = { id: '1', name: 'Admin', username: 'admin', email: 'admin@geovision.com', role: 'admin' };
+const DEFAULT_ADMIN = { id: '1', name: 'Admin', username: 'admin', email: 'admin@geovisionservices.com', role: 'admin' };
 
 export const loadUsers = () => {
     for (const key of USER_KEYS) {
