@@ -1,219 +1,195 @@
-import { AUTH_ERROR, CLEAR_AUTH_ERROR, LOGIN_SUCCESS, LOGOUT, REGISTER_SUCCESS, UPDATE_PROFILE } from '../constants/Auth';
-import { authApi } from '../../services/api';
+/**
+ * Auth.js — Supabase Auth-backed authentication actions.
+ *
+ * Supabase Auth stores credentials server-side (bcrypt-hashed).
+ * Custom fields (name, username, role, photo) live in user_metadata.
+ *
+ * Redux currentUser shape stays unchanged:
+ *   { id, name, username, email, role, photo }
+ */
+import { supabase } from '../../services/supabase';
+import {
+    AUTH_ERROR, CLEAR_AUTH_ERROR,
+    LOGIN_SUCCESS, LOGOUT, REGISTER_SUCCESS, UPDATE_PROFILE,
+} from '../constants/Auth';
 
-const USER_KEYS = ['gv_crm_users', 'crm_users', 'users'];
+/* ── localStorage keys (session persistence / bootstrap) ─────────────────── */
 const CURRENT_USER_KEYS = ['gv_crm_current_user', 'crm_current_user', 'currentUser', 'auth_user'];
-const DEFAULT_USERS = [
-    { id: '1', name: 'Admin', username: 'admin', email: 'admin@geovision.com', password: 'admin1234', role: 'admin' },
-    { id: '2', name: 'Boatemaa', username: 'boatemaa', email: 'boatemaa@geovisionservices.com', password: 'Maame1234', role: 'user' },
-    { id: '3', name: 'Ellis', username: 'ellis', email: 'ellis@geovisionservices.com', password: 'Ellis1234', role: 'user' },
-    { id: '4', name: 'Nina', username: 'nina', email: 'nina@geovisionservices.com', password: 'Nina1234', role: 'user' },
-];
 
-const safeParse = (value, fallback = null) => {
-    try { return value ? JSON.parse(value) : fallback; } catch { return fallback; }
-};
-
-const normalizeUser = (user = {}) => ({
-    id: String(user.id ?? user._id ?? Date.now()),
-    name: user.name || user.fullName || user.username || 'User',
-    username: user.username || (user.email ? String(user.email).split('@')[0] : `user${Date.now()}`),
-    email: (user.email || '').toLowerCase(),
-    password: user.password || '',
-    role: user.role || 'user',
-    photo: user.photo || '',
-    designation: user.designation || '',
-    bio: user.bio || '',
-    city: user.city || '',
-    country: user.country || '',
-    phone: user.phone || '',
-});
-
-const withoutPassword = (user = {}) => {
-    const normalized = normalizeUser(user);
-    const { password, ...safeUser } = normalized;
-    return safeUser;
-};
-
-const persistUsers = (users) => {
-    USER_KEYS.forEach((key) => {
-        try { localStorage.setItem(key, JSON.stringify(users)); } catch { /* ignore */ }
+const persistCurrentUser = (user) =>
+    CURRENT_USER_KEYS.forEach((k) => {
+        try { localStorage.setItem(k, JSON.stringify(user)); } catch { /* ignore */ }
     });
-};
 
-const persistCurrentUser = (user) => {
-    CURRENT_USER_KEYS.forEach((key) => {
-        try { localStorage.setItem(key, JSON.stringify(user)); } catch { /* ignore */ }
+const clearCurrentUser = () =>
+    CURRENT_USER_KEYS.forEach((k) => {
+        try { localStorage.removeItem(k); } catch { /* ignore */ }
     });
+
+/* ── Supabase User → Redux currentUser ───────────────────────────────────── */
+const toReduxUser = (supaUser) => {
+    if (!supaUser) return null;
+    const m = supaUser.user_metadata || {};
+    return {
+        id:       supaUser.id,
+        name:     m.name     || m.full_name || supaUser.email?.split('@')[0] || 'User',
+        username: m.username || supaUser.email?.split('@')[0] || 'user',
+        email:    supaUser.email || '',
+        role:     m.role    || 'user',
+        photo:    m.photo   || m.avatar_url || '',
+    };
 };
 
-const clearCurrentUser = () => {
-    CURRENT_USER_KEYS.forEach((key) => {
-        try { localStorage.removeItem(key); } catch { /* ignore */ }
-    });
-};
-
-const isOfflineApiError = (error) => !error?.response;
-
-const mergeUsers = (existing = [], incoming = []) => {
-    const map = new Map();
-    [...existing, ...incoming].forEach((user) => {
-        const normalized = normalizeUser(user);
-        map.set(String(normalized.id), normalized);
-    });
-    return Array.from(map.values());
-};
-
-const syncUsersFromServer = async () => {
-    const { data } = await authApi.listUsers();
-    const users = (Array.isArray(data) ? data : []).map(withoutPassword);
-    persistUsers(users);
-    return users;
-};
-
-export const loadUsers = () => {
-    for (const key of USER_KEYS) {
-        const parsed = safeParse(localStorage.getItem(key), null);
-        if (Array.isArray(parsed) && parsed.length) {
-            const normalized = parsed.map(normalizeUser);
-            const seeded = mergeUsers(DEFAULT_USERS, normalized);
-            persistUsers(seeded);
-            return seeded;
-        }
-    }
-    persistUsers(DEFAULT_USERS);
-    return DEFAULT_USERS;
-};
-
+/* ═══════════════════════════════════════════════════════════════════════════
+   loadCurrentUser — synchronous bootstrap used by the Auth reducer.
+   Reads from localStorage; the Supabase async session corrects it via
+   syncSupabaseSession() dispatched from App.jsx on mount.
+═══════════════════════════════════════════════════════════════════════════ */
 export const loadCurrentUser = () => {
     for (const key of CURRENT_USER_KEYS) {
-        const parsed = safeParse(localStorage.getItem(key), null);
-        if (parsed && (parsed.email || parsed.username)) {
-            const safeUser = withoutPassword(parsed);
-            persistCurrentUser(safeUser);
-            return safeUser;
-        }
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            if (parsed && (parsed.email || parsed.username)) {
+                const { password, ...safeUser } = parsed; // eslint-disable-line no-unused-vars
+                return safeUser;
+            }
+        } catch { /* ignore */ }
     }
     return null;
 };
 
-export const loginUser = (email, password) => async (dispatch) => {
-    const value = String(email || '').trim().toLowerCase();
-    const pass = String(password || '');
-
+/* ═══════════════════════════════════════════════════════════════════════════
+   syncSupabaseSession — call on app mount to pick up an existing session
+   (e.g. after a page refresh) and keep Redux in sync.
+═══════════════════════════════════════════════════════════════════════════ */
+export const syncSupabaseSession = () => async (dispatch) => {
     try {
-        const { data } = await authApi.login({ email: value, password: pass });
-        const safeUser = withoutPassword(data);
-        persistCurrentUser(safeUser);
-        dispatch({ type: LOGIN_SUCCESS, payload: safeUser });
-
-        try {
-            await syncUsersFromServer();
-        } catch {
-            const merged = mergeUsers(loadUsers(), [safeUser]);
-            persistUsers(merged.map(withoutPassword));
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+            const user = toReduxUser(session.user);
+            persistCurrentUser(user);
+            dispatch({ type: LOGIN_SUCCESS, payload: user });
         }
-        return true;
-    } catch (error) {
-        if (!isOfflineApiError(error)) {
-            dispatch({ type: AUTH_ERROR, payload: error.response?.data?.message || 'Invalid email/username or password.' });
-            return false;
-        }
-    }
-
-    const users = loadUsers();
-    const user = users.find((u) => (u.email === value || String(u.username).toLowerCase() === value) && u.password === pass);
-    if (user) {
-        const safeUser = withoutPassword(user);
-        persistCurrentUser(safeUser);
-        dispatch({ type: LOGIN_SUCCESS, payload: safeUser });
-        return true;
-    }
-
-    dispatch({ type: AUTH_ERROR, payload: 'Invalid email/username or password.' });
-    return false;
+    } catch { /* ignore — localStorage bootstrap is the fallback */ }
 };
 
-export const registerUser = (userData) => async (dispatch) => {
-    const payload = {
-        name: String(userData.name || '').trim(),
-        username: String(userData.username || '').trim(),
-        email: String(userData.email || '').trim().toLowerCase(),
-        password: String(userData.password || ''),
-        role: userData.role || 'user',
-    };
-
+/* ═══════════════════════════════════════════════════════════════════════════
+   loginUser
+═══════════════════════════════════════════════════════════════════════════ */
+export const loginUser = (email, password) => async (dispatch) => {
+    dispatch({ type: CLEAR_AUTH_ERROR });
     try {
-        const { data } = await authApi.register(payload);
-        const safeUser = withoutPassword(data);
-        persistCurrentUser(safeUser);
-        dispatch({ type: REGISTER_SUCCESS, payload: safeUser });
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email:    String(email || '').trim().toLowerCase(),
+            password: String(password || ''),
+        });
 
-        try {
-            await syncUsersFromServer();
-        } catch {
-            const existing = loadUsers().filter((user) => String(user.id) !== String(safeUser.id));
-            persistUsers([...existing, safeUser].map(withoutPassword));
-        }
-        return true;
-    } catch (error) {
-        if (!isOfflineApiError(error)) {
-            dispatch({ type: AUTH_ERROR, payload: error.response?.data?.message || 'Unable to create account.' });
+        if (error) {
+            dispatch({ type: AUTH_ERROR, payload: 'Invalid email/username or password.' });
             return false;
         }
-    }
 
-    const users = loadUsers();
-    const exists = users.find((u) => u.email === payload.email || String(u.username).toLowerCase() === payload.username.toLowerCase());
-    if (exists) {
-        dispatch({ type: AUTH_ERROR, payload: 'Email or username already exists.' });
+        const user = toReduxUser(data.user);
+        persistCurrentUser(user);
+        dispatch({ type: LOGIN_SUCCESS, payload: user });
+        return true;
+    } catch {
+        dispatch({ type: AUTH_ERROR, payload: 'Login failed. Please try again.' });
         return false;
     }
-
-    const newUser = normalizeUser({
-        id: Date.now(),
-        ...payload,
-    });
-    const updated = [...users, newUser];
-    persistUsers(updated);
-    const safeUser = withoutPassword(newUser);
-    persistCurrentUser(safeUser);
-    dispatch({ type: REGISTER_SUCCESS, payload: safeUser });
-    return true;
 };
 
-export const logoutUser = () => (dispatch) => {
+/* ═══════════════════════════════════════════════════════════════════════════
+   registerUser
+═══════════════════════════════════════════════════════════════════════════ */
+export const registerUser = (userData) => async (dispatch) => {
+    dispatch({ type: CLEAR_AUTH_ERROR });
+    try {
+        const { data, error } = await supabase.auth.signUp({
+            email:    String(userData.email || '').trim().toLowerCase(),
+            password: String(userData.password || ''),
+            options: {
+                data: {
+                    name:     String(userData.name     || '').trim(),
+                    username: String(userData.username || '').trim(),
+                    role:     'user',
+                },
+            },
+        });
+
+        if (error) {
+            dispatch({ type: AUTH_ERROR, payload: error.message });
+            return false;
+        }
+
+        // Empty identities = email already registered (Supabase quirk)
+        if (data.user?.identities?.length === 0) {
+            dispatch({ type: AUTH_ERROR, payload: 'An account with this email already exists.' });
+            return false;
+        }
+
+        const user = toReduxUser(data.user);
+        persistCurrentUser(user);
+        dispatch({ type: REGISTER_SUCCESS, payload: user });
+        return true;
+    } catch {
+        dispatch({ type: AUTH_ERROR, payload: 'Registration failed. Please try again.' });
+        return false;
+    }
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   logoutUser
+═══════════════════════════════════════════════════════════════════════════ */
+export const logoutUser = () => async (dispatch) => {
+    await supabase.auth.signOut().catch(() => {});
     clearCurrentUser();
     dispatch({ type: LOGOUT });
 };
 
-export const clearAuthError = () => ({ type: CLEAR_AUTH_ERROR });
-
+/* ═══════════════════════════════════════════════════════════════════════════
+   updateCurrentUser
+═══════════════════════════════════════════════════════════════════════════ */
 export const updateCurrentUser = (updates) => async (dispatch, getState) => {
     const { auth } = getState();
     if (!auth.currentUser) return;
 
     try {
-        const { data } = await authApi.updateUser(auth.currentUser.id, updates);
-        const safeUser = withoutPassword(data);
-        persistCurrentUser(safeUser);
-
-        const existing = loadUsers().filter((user) => String(user.id) !== String(safeUser.id));
-        persistUsers([...existing, safeUser].map(withoutPassword));
-
-        dispatch({ type: UPDATE_PROFILE, payload: safeUser });
-        return;
-    } catch (error) {
-        if (!isOfflineApiError(error)) {
-            dispatch({ type: AUTH_ERROR, payload: error.response?.data?.message || 'Unable to update profile.' });
-            return;
+        const { id, email, ...meta } = updates; // eslint-disable-line no-unused-vars
+        const { data, error } = await supabase.auth.updateUser({ data: meta });
+        if (!error && data.user) {
+            const updated = { ...auth.currentUser, ...toReduxUser(data.user) };
+            persistCurrentUser(updated);
+            dispatch({ type: UPDATE_PROFILE, payload: updated });
         }
+    } catch { /* ignore */ }
+};
+
+export const clearAuthError = () => ({ type: CLEAR_AUTH_ERROR });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   loadUsers — synchronous helper used by task/scrumboard dropdowns to list
+   team members for "Assign to" / "Reporter" fields.
+   Reads from localStorage (populated at login). Falls back to current user.
+═══════════════════════════════════════════════════════════════════════════ */
+const USER_KEYS = ['gv_crm_users', 'crm_users', 'users'];
+const DEFAULT_ADMIN = { id: '1', name: 'Admin', username: 'admin', email: 'admin@geovision.com', role: 'admin' };
+
+export const loadUsers = () => {
+    for (const key of USER_KEYS) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) continue;
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed) && parsed.length) {
+                return parsed.map(({ password, ...u }) => u); // strip passwords
+            }
+        } catch { /* ignore */ }
     }
 
-    const updated = { ...auth.currentUser, ...updates };
-    persistCurrentUser(updated);
-    const users = loadUsers();
-    const newUsers = users.map((user) => String(user.id) === String(updated.id) ? { ...user, ...updates } : user);
-    persistUsers(newUsers);
-    dispatch({ type: UPDATE_PROFILE, payload: updated });
+    // Fall back: build a single-user list from the persisted current user
+    const current = loadCurrentUser();
+    return current ? [current] : [DEFAULT_ADMIN];
 };

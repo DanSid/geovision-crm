@@ -5,6 +5,7 @@ import AuthRoutes from './routes/AuthRoutes';
 import ScrollToTop from './utils/ScrollToTop';
 import IndexRoute from './routes';
 import { initApp } from './redux/action/Crm';
+import { syncSupabaseSession } from './redux/action/Auth';
 
 // Protected route — redirects to login if not authenticated
 const ProtectedRoute = ({ component: Component, isAuthenticated, ...rest }) => (
@@ -18,9 +19,11 @@ const ProtectedRoute = ({ component: Component, isAuthenticated, ...rest }) => (
     />
 );
 
-function App({ isAuthenticated, initApp }) {
-    // Hydrate Redux store from MongoDB on every app mount
-    useEffect(() => { initApp(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+function App({ isAuthenticated, initApp, syncSupabaseSession }) {
+    useEffect(() => {
+        syncSupabaseSession(); // restore Supabase session → Redux on page refresh
+        initApp();             // hydrate CRM data from Supabase
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <BrowserRouter>
@@ -45,4 +48,4 @@ function App({ isAuthenticated, initApp }) {
 }
 
 const mapStateToProps = ({ auth }) => ({ isAuthenticated: auth.isAuthenticated });
-export default connect(mapStateToProps, { initApp })(App);
+export default connect(mapStateToProps, { initApp, syncSupabaseSession })(App);

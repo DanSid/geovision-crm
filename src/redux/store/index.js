@@ -1,5 +1,6 @@
 import { applyMiddleware, compose, createStore } from "redux";
 import reducers from "../reducer";
+import { subscribeToRealtime } from "../../services/realtime";
 
 const thunk = store => next => action => {
     if (typeof action === 'function') {
@@ -85,7 +86,10 @@ const configureStore = (preloadedState) => {
 
 const store = configureStore(loadCrmPreloadedState());
 
-// Backup: re-save entire CRM state on every Redux action
+// Mirror every Redux change to localStorage (offline fallback)
 store.subscribe(() => saveCrmState(store.getState()));
+
+// Start Supabase real-time — push remote changes into Redux immediately
+subscribeToRealtime(store);
 
 export default store;

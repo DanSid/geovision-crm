@@ -35,12 +35,6 @@ export default defineConfig({
   server: {
     port: 5176,
     host: true,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false,
-      },
-    },
+    // No proxy needed — Supabase is called directly from the browser
   },
 })
