@@ -117,7 +117,7 @@ const Sidebar = () => {
                                         </div>
                                     </div>
                                 </Nav.Item>
-                                <Nav.Item>
+                                {/* <Nav.Item>
                                     <div>
                                         <div className="media d-flex align-items-center">
                                             <div className="media-head me-2">
@@ -148,11 +148,11 @@ const Sidebar = () => {
                                             </Button>
                                         </div>
                                     </div>
-                                </Nav.Item>
+                                </Nav.Item> */}
 
                             </Nav>
                         </div>
-                        <Alert variant="warning" className="mt-5">
+                        {/* <Alert variant="warning" className="mt-5">
                             <Alert.Heading as="h6" className="heading-wth-icon">
                                 <span className="head-icon">
                                     <span className="feather-icon">
@@ -162,7 +162,7 @@ const Sidebar = () => {
                                 Trial Ends on 14 Jan
                             </Alert.Heading>
                             <p className="fs-7">Last 3 days left for your trial to end. Renew now to stay connected.</p>
-                        </Alert>
+                        </Alert> */}
                     </div>
                 </SimpleBar>
                 {/*Sidebar Fixnav*/}

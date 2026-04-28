@@ -73,7 +73,15 @@ const crudThunks = (apiService, ADD, UPDATE, DELETE) => ({
 
 // ── CONTACTS ─────────────────────────────────────────────────────────────────
 const contactCrud = crudThunks(contactsApi, ADD_CONTACT, UPDATE_CONTACT, DELETE_CONTACT);
-export const addContact    = contactCrud.add;
+/**
+ * addContact — wraps the generic crud add to inject the logged-in user's name
+ * as `createdBy` so the Reports page can track who added each contact.
+ */
+export const addContact = (data) => async (dispatch, getState) => {
+    const user = getState().auth?.currentUser;
+    const enriched = { ...data, createdBy: data.createdBy || user?.name || 'Unknown' };
+    return contactCrud.add(enriched)(dispatch);
+};
 export const updateContact = contactCrud.update;
 
 /**
@@ -98,7 +106,14 @@ export const deleteContact = (id) => async (dispatch) => {
 
 // ── OPPORTUNITIES ─────────────────────────────────────────────────────────────
 const oppCrud = crudThunks(opportunitiesApi, ADD_OPPORTUNITY, UPDATE_OPPORTUNITY, DELETE_OPPORTUNITY);
-export const addOpportunity    = oppCrud.add;
+/**
+ * addOpportunity — injects `createdBy` from current user, same as addContact.
+ */
+export const addOpportunity = (data) => async (dispatch, getState) => {
+    const user = getState().auth?.currentUser;
+    const enriched = { ...data, createdBy: data.createdBy || user?.name || 'Unknown' };
+    return oppCrud.add(enriched)(dispatch);
+};
 export const updateOpportunity = oppCrud.update;
 export const deleteOpportunity = oppCrud.remove;
 

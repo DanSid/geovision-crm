@@ -131,3 +131,17 @@ export const isActivityTodayOrOverdue = (activity, now = new Date()) => {
     const today = toLocalDateKey(now);
     return !!activityDay && !!today && activityDay <= today;
 };
+
+/**
+ * isActivityWithinNotifWindow — bell visibility guard.
+ * Returns true only if the activity's start time is within the last
+ * `maxOverdueHours` hours.  Once the window expires the entry silently
+ * drops out of the notification bell so stale "Overdue" items don't pile up.
+ */
+export const isActivityWithinNotifWindow = (activity, maxOverdueHours = 24, now = new Date()) => {
+    const dt = getActivityDateTime(activity);
+    if (!dt) return false;
+    const diffMs = now.getTime() - dt.getTime();
+    if (diffMs < 0) return false;                               // still in the future
+    return diffMs <= maxOverdueHours * 60 * 60 * 1000;         // within window
+};

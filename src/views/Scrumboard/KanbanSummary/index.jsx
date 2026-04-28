@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { connect } from 'react-redux';
 import { Card, Col, Row, Badge, ProgressBar } from 'react-bootstrap';
 import ReactApexChart from 'react-apexcharts';
-import { CheckCircle, Edit3, PlusCircle, Clock, Activity } from 'react-feather';
+import { CheckCircle, Edit3, PlusCircle, Clock, Activity, Users, TrendingUp, Calendar } from 'react-feather';
 import classNames from 'classnames';
 import Sidebar from '../Sidebar';
 
@@ -60,6 +60,121 @@ const avatarColor = (name) => {
     return colors[name.charCodeAt(0) % colors.length];
 };
 
+// ── CRM period helpers ────────────────────────────────────────────────────────
+const PERIOD_LABELS = {
+    today: 'Today',
+    week:  'This Week',
+    month: 'This Month',
+    year:  'This Year',
+};
+
+const getPeriodStart = (period) => {
+    const now = new Date();
+    switch (period) {
+        case 'today': {
+            const d = new Date(now); d.setHours(0, 0, 0, 0); return d;
+        }
+        case 'week': {
+            const d = new Date(now);
+            d.setDate(now.getDate() - ((now.getDay() + 6) % 7)); // Mon-based
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+        case 'month': return new Date(now.getFullYear(), now.getMonth(), 1);
+        case 'year':  return new Date(now.getFullYear(), 0, 1);
+        default: return new Date(0);
+    }
+};
+
+const inPeriod = (record, start) => {
+    const ts = new Date(record.createdAt || record.updatedAt || 0).getTime();
+    return ts >= start.getTime();
+};
+
+/** Build { labels, contactSeries, oppSeries } for the bar chart */
+const buildTimeSeries = (contacts, opportunities, period) => {
+    const now = new Date();
+
+    if (period === 'today') {
+        const labels = Array.from({ length: 24 }, (_, h) => `${h}:00`);
+        const cSeries = Array(24).fill(0);
+        const oSeries = Array(24).fill(0);
+        const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+        contacts.forEach(r => {
+            const d = new Date(r.createdAt || 0);
+            if (`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` === todayKey)
+                cSeries[d.getHours()]++;
+        });
+        opportunities.forEach(r => {
+            const d = new Date(r.createdAt || 0);
+            if (`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` === todayKey)
+                oSeries[d.getHours()]++;
+        });
+        return { labels, cSeries, oSeries };
+    }
+
+    if (period === 'week') {
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+        monday.setHours(0, 0, 0, 0);
+        const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const cSeries = Array(7).fill(0);
+        const oSeries = Array(7).fill(0);
+        const MS_DAY = 1000 * 60 * 60 * 24;
+        contacts.forEach(r => {
+            const idx = Math.floor((new Date(r.createdAt || 0) - monday) / MS_DAY);
+            if (idx >= 0 && idx < 7) cSeries[idx]++;
+        });
+        opportunities.forEach(r => {
+            const idx = Math.floor((new Date(r.createdAt || 0) - monday) / MS_DAY);
+            if (idx >= 0 && idx < 7) oSeries[idx]++;
+        });
+        return { labels: DAY_NAMES, cSeries, oSeries };
+    }
+
+    if (period === 'month') {
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const labels = Array.from({ length: daysInMonth }, (_, i) => String(i + 1));
+        const cSeries = Array(daysInMonth).fill(0);
+        const oSeries = Array(daysInMonth).fill(0);
+        contacts.forEach(r => {
+            const d = new Date(r.createdAt || 0);
+            if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth())
+                cSeries[d.getDate() - 1]++;
+        });
+        opportunities.forEach(r => {
+            const d = new Date(r.createdAt || 0);
+            if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth())
+                oSeries[d.getDate() - 1]++;
+        });
+        return { labels, cSeries, oSeries };
+    }
+
+    // year
+    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const cSeries = Array(12).fill(0);
+    const oSeries = Array(12).fill(0);
+    contacts.forEach(r => {
+        const d = new Date(r.createdAt || 0);
+        if (d.getFullYear() === now.getFullYear()) cSeries[d.getMonth()]++;
+    });
+    opportunities.forEach(r => {
+        const d = new Date(r.createdAt || 0);
+        if (d.getFullYear() === now.getFullYear()) oSeries[d.getMonth()]++;
+    });
+    return { labels: MONTHS, cSeries, oSeries };
+};
+
+/** Group array by key, return sorted [key, count][] desc */
+const groupBy = (arr, key) => {
+    const map = {};
+    arr.forEach(item => {
+        const k = item[key] || 'Unknown';
+        map[k] = (map[k] || 0) + 1;
+    });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]);
+};
+
 // ── Stat card ─────────────────────────────────────────────────────────────────
 const StatCard = ({ icon: Icon, count, label, sub, color }) => (
     <Card className="card-border h-100">
@@ -80,6 +195,8 @@ const StatCard = ({ icon: Icon, count, label, sub, color }) => (
 const KanbanSummary = ({
     tasks = [],
     opportunities = [],
+    contacts = [],
+    activities = [],
     equipment = [],
     stockLocations = [],
     crewMembers = [],
@@ -90,7 +207,10 @@ const KanbanSummary = ({
     const sevenDaysAgo = daysAgo(7);
     const sevenDaysLater = daysFromNow(7);
 
-    // ── Computed stats ────────────────────────────────────────────────────────
+    /* ── CRM Period state ── */
+    const [crmPeriod, setCrmPeriod] = useState('week');
+
+    // ── Board stat cards ──────────────────────────────────────────────────────
     const stats = useMemo(() => {
         const completed = tasks.filter(t => t.done || t.status === 'Completed').length;
         const created   = tasks.filter(t => t.createdAt && new Date(t.createdAt) >= sevenDaysAgo).length;
@@ -102,6 +222,57 @@ const KanbanSummary = ({
         return { completed, updated: tasks.length, created, dueSoon };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tasks]);
+
+    // ── CRM period computations ───────────────────────────────────────────────
+    const crmData = useMemo(() => {
+        const start = getPeriodStart(crmPeriod);
+        const periodContacts     = contacts.filter(r => inPeriod(r, start));
+        const periodOpps         = opportunities.filter(r => inPeriod(r, start));
+        const periodActivities   = activities.filter(r => inPeriod(r, start));
+
+        // Time-series for bar chart
+        const { labels, cSeries, oSeries } = buildTimeSeries(periodContacts, periodOpps, crmPeriod);
+
+        // Per-user breakdown
+        const allRecords = [
+            ...periodContacts.map(r => ({ ...r, _kind: 'Contact' })),
+            ...periodOpps.map(r => ({ ...r, _kind: 'Opportunity' })),
+        ];
+        const byUser = {};
+        allRecords.forEach(r => {
+            const u = r.createdBy || 'Unknown';
+            if (!byUser[u]) byUser[u] = { contacts: 0, opportunities: 0, total: 0 };
+            if (r._kind === 'Contact')     byUser[u].contacts++;
+            if (r._kind === 'Opportunity') byUser[u].opportunities++;
+            byUser[u].total++;
+        });
+        const userRows = Object.entries(byUser).sort((a, b) => b[1].total - a[1].total);
+
+        return {
+            totalContacts:     periodContacts.length,
+            totalOpps:         periodOpps.length,
+            totalActivities:   periodActivities.length,
+            chartLabels:       labels,
+            contactSeries:     cSeries,
+            oppSeries:         oSeries,
+            userRows,
+        };
+    }, [contacts, opportunities, activities, crmPeriod]);
+
+    const barChartOptions = useMemo(() => ({
+        chart: { type: 'bar', toolbar: { show: false }, fontFamily: 'inherit', stacked: false },
+        xaxis: {
+            categories: crmData.chartLabels,
+            labels: { style: { fontSize: '10px' }, rotate: crmPeriod === 'month' ? -45 : 0 },
+        },
+        yaxis: { labels: { style: { fontSize: '11px' } }, min: 0, forceNiceScale: true },
+        colors: ['#4c6fff', '#36b37e'],
+        plotOptions: { bar: { borderRadius: 3, columnWidth: crmPeriod === 'today' ? '30%' : '55%' } },
+        dataLabels: { enabled: false },
+        legend: { position: 'top', fontSize: '11px' },
+        grid: { borderColor: '#f1f2f3' },
+        tooltip: { y: { formatter: (v) => `${v} record${v !== 1 ? 's' : ''}` } },
+    }), [crmData.chartLabels, crmPeriod]);
 
     // ── Status breakdown ──────────────────────────────────────────────────────
     const statusGroups = useMemo(() => {
@@ -269,6 +440,8 @@ const KanbanSummary = ({
         return `${Math.floor(hrs / 24)}d ago`;
     };
 
+    const maxUserTotal = crmData.userRows[0]?.[1]?.total || 1;
+
     return (
         <div className="hk-pg-body py-0">
             <div className="taskboardapp-wrap">
@@ -284,6 +457,167 @@ const KanbanSummary = ({
                         </div>
 
                         <div className="p-4">
+
+                            {/* ══════════════════════════════════════════════
+                                CRM INPUT TRACKER
+                            ══════════════════════════════════════════════ */}
+                            <div className="d-flex align-items-center justify-content-between mb-3">
+                                <div className="d-flex align-items-center gap-2">
+                                    <Users size={16} className="text-primary" />
+                                    <h6 className="mb-0 fw-bold">CRM Input Tracker</h6>
+                                    <span className="text-muted" style={{ fontSize: 11 }}>— who added records and when</span>
+                                </div>
+                                <div className="btn-group btn-group-sm" role="group">
+                                    {Object.entries(PERIOD_LABELS).map(([p, label]) => (
+                                        <button
+                                            key={p}
+                                            type="button"
+                                            className={`btn btn-${crmPeriod === p ? 'primary' : 'outline-secondary'}`}
+                                            onClick={() => setCrmPeriod(p)}
+                                            style={{ fontSize: 11, padding: '3px 10px' }}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* CRM stat cards */}
+                            <Row className="g-3 mb-4">
+                                <Col xs={12} sm={4}>
+                                    <StatCard
+                                        icon={Users}
+                                        count={crmData.totalContacts}
+                                        label="Contacts Added"
+                                        sub={PERIOD_LABELS[crmPeriod].toLowerCase()}
+                                        color="primary"
+                                    />
+                                </Col>
+                                <Col xs={12} sm={4}>
+                                    <StatCard
+                                        icon={TrendingUp}
+                                        count={crmData.totalOpps}
+                                        label="Opportunities Added"
+                                        sub={PERIOD_LABELS[crmPeriod].toLowerCase()}
+                                        color="success"
+                                    />
+                                </Col>
+                                <Col xs={12} sm={4}>
+                                    <StatCard
+                                        icon={Calendar}
+                                        count={crmData.totalActivities}
+                                        label="Activities Logged"
+                                        sub={PERIOD_LABELS[crmPeriod].toLowerCase()}
+                                        color="info"
+                                    />
+                                </Col>
+                            </Row>
+
+                            {/* CRM charts */}
+                            <Row className="g-3 mb-4">
+                                {/* Records over time */}
+                                <Col xl={7}>
+                                    <Card className="card-border h-100">
+                                        <Card.Header className="card-header-action">
+                                            <h6 className="card-title mb-0">Records added over time</h6>
+                                            <p className="card-sub-title text-muted mb-0" style={{ fontSize: 11 }}>
+                                                Contacts and opportunities entered — {PERIOD_LABELS[crmPeriod].toLowerCase()}
+                                            </p>
+                                        </Card.Header>
+                                        <Card.Body>
+                                            {crmData.totalContacts + crmData.totalOpps === 0 ? (
+                                                <div className="text-center text-muted py-4">No records added {PERIOD_LABELS[crmPeriod].toLowerCase()}</div>
+                                            ) : (
+                                                <ReactApexChart
+                                                    type="bar"
+                                                    series={[
+                                                        { name: 'Contacts',      data: crmData.contactSeries },
+                                                        { name: 'Opportunities', data: crmData.oppSeries },
+                                                    ]}
+                                                    options={barChartOptions}
+                                                    height={220}
+                                                />
+                                            )}
+                                        </Card.Body>
+                                    </Card>
+                                </Col>
+
+                                {/* Per-user breakdown */}
+                                <Col xl={5}>
+                                    <Card className="card-border h-100">
+                                        <Card.Header className="card-header-action">
+                                            <h6 className="card-title mb-0">Who added what</h6>
+                                            <p className="card-sub-title text-muted mb-0" style={{ fontSize: 11 }}>
+                                                Per-team-member breakdown — {PERIOD_LABELS[crmPeriod].toLowerCase()}
+                                            </p>
+                                        </Card.Header>
+                                        <Card.Body className="p-0">
+                                            {crmData.userRows.length === 0 ? (
+                                                <div className="text-center text-muted py-4">No CRM records {PERIOD_LABELS[crmPeriod].toLowerCase()}</div>
+                                            ) : (
+                                                <table className="table table-sm mb-0" style={{ fontSize: 12 }}>
+                                                    <thead>
+                                                        <tr>
+                                                            <th className="text-muted fw-normal ps-3 border-0" style={{ fontSize: 11 }}>Team member</th>
+                                                            <th className="text-muted fw-normal text-center border-0" style={{ fontSize: 11 }}>Contacts</th>
+                                                            <th className="text-muted fw-normal text-center border-0" style={{ fontSize: 11 }}>Opps</th>
+                                                            <th className="text-muted fw-normal border-0" style={{ fontSize: 11 }}>Activity</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {crmData.userRows.map(([name, counts]) => {
+                                                            const pct = Math.round((counts.total / maxUserTotal) * 100);
+                                                            return (
+                                                                <tr key={name}>
+                                                                    <td className="py-2 ps-3">
+                                                                        <div className="d-flex align-items-center gap-2">
+                                                                            <div className={`avatar avatar-xs avatar-soft-${avatarColor(name)} avatar-rounded flex-shrink-0`}>
+                                                                                <span className="initial-wrap" style={{ fontSize: '9px' }}>
+                                                                                    {name.charAt(0).toUpperCase()}
+                                                                                </span>
+                                                                            </div>
+                                                                            <span className="fw-semibold text-truncate" style={{ maxWidth: 110 }}>{name}</span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="py-2 text-center fw-semibold" style={{ color: '#4c6fff' }}>
+                                                                        {counts.contacts}
+                                                                    </td>
+                                                                    <td className="py-2 text-center fw-semibold" style={{ color: '#36b37e' }}>
+                                                                        {counts.opportunities}
+                                                                    </td>
+                                                                    <td className="py-2 pe-3" style={{ width: '35%' }}>
+                                                                        <div className="d-flex align-items-center gap-1">
+                                                                            <ProgressBar
+                                                                                now={pct}
+                                                                                variant="primary"
+                                                                                style={{ height: 5, flex: 1, borderRadius: 4 }}
+                                                                            />
+                                                                            <span className="text-muted" style={{ fontSize: 10, minWidth: 28, textAlign: 'right' }}>
+                                                                                {counts.total}
+                                                                            </span>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            )}
+                                        </Card.Body>
+                                    </Card>
+                                </Col>
+                            </Row>
+
+                            <hr className="my-2 mb-4" />
+
+                            {/* ══════════════════════════════════════════════
+                                BOARD SUMMARY (tasks / opps / logistics)
+                            ══════════════════════════════════════════════ */}
+                            <div className="d-flex align-items-center gap-2 mb-3">
+                                <Activity size={16} className="text-secondary" />
+                                <h6 className="mb-0 fw-bold text-muted">Board Summary</h6>
+                            </div>
+
                             {/* ── Stat Cards ──────────────────────────────── */}
                             <Row className="g-3 mb-4">
                                 <Col xs={6} xl={3}>
@@ -563,13 +897,15 @@ const KanbanSummary = ({
     );
 };
 
-const mapStateToProps = ({ tasks, opportunities, equipment, stockLocations, crewMembers, vehicles, maintenance }) => ({
-    tasks,
-    opportunities,
-    equipment,
-    stockLocations,
-    crewMembers,
-    vehicles,
-    maintenance,
+const mapStateToProps = ({ tasks, opportunities, contacts, activities, equipment, stockLocations, crewMembers, vehicles, maintenance }) => ({
+    tasks:          tasks          || [],
+    opportunities:  opportunities  || [],
+    contacts:       contacts       || [],
+    activities:     activities     || [],
+    equipment:      equipment      || [],
+    stockLocations: stockLocations || [],
+    crewMembers:    crewMembers    || [],
+    vehicles:       vehicles       || [],
+    maintenance:    maintenance    || [],
 });
 export default connect(mapStateToProps)(KanbanSummary);

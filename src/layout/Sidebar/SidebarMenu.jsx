@@ -47,14 +47,14 @@ export const SidebarMenu = [
                 path: '/apps/opportunities',
                 grp_name: 'sales',
             },
+            // {
+            //     name: 'Reports',
+            //     icon: <Icons.ChartBar />,
+            //     path: '/apps/taskboard/summary',
+            //     grp_name: 'sales',
+            // },
             {
-                name: 'Reports',
-                icon: <Icons.ChartBar />,
-                path: '/apps/taskboard/summary',
-                grp_name: 'sales',
-            },
-            {
-                name: 'Summary',
+                name: 'Reports/Summary',
                 icon: <Icons.ChartPie />,
                 path: '/apps/sales/report',
                 grp_name: 'sales',

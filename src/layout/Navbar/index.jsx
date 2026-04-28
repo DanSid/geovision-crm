@@ -19,6 +19,7 @@ import {
     getActivityStatus,
     isActivityDueNow,
     isActivityTodayOrOverdue,
+    isActivityWithinNotifWindow,
     toLocalDateKey,
 } from '../../utils/activitySchedule';
 
@@ -194,6 +195,8 @@ const CompactNav = ({
                 }
                 const status = getActivityStatus(a);
                 if (status === 'upcoming') return false; // future → not in bell
+                // Auto-dismiss: hide activities whose start time was > 24 hours ago
+                if (!isActivityWithinNotifWindow(a)) return false;
                 return isActivityTodayOrOverdue(a);
             })
             .sort((a, b) => {
