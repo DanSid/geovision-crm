@@ -27,7 +27,7 @@ const SortIcon = ({ colKey, sortKey, sortDir }) => {
 /* ══════════════════════════════════════════════════════════════════════════
    ContactListTable
 ══════════════════════════════════════════════════════════════════════════ */
-const ContactListTable = ({ contacts = [], selectedId, onSelect }) => {
+const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) => {
     const [sortKey, setSortKey] = useState('company');
     const [sortDir, setSortDir] = useState('asc');
     const [search,  setSearch]  = useState('');
@@ -68,13 +68,22 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect }) => {
     };
 
     /* ── Checkbox helpers ── */
-    const toggleOne = (id, e) => {
+    /**
+     * toggleOne — single-select behaviour.
+     * Checking a contact:
+     *   1. Clears any previously checked contact (one active selection at a time)
+     *   2. Marks this contact as the active one for the action bar (Edit/Delete)
+     *      WITHOUT switching to detail view — so the user stays in list view.
+     * Un-checking just clears the selection.
+     */
+    const toggleOne = (id, contact, e) => {
         e.stopPropagation();
         setChecked(prev => {
-            const next = new Set(prev);
-            next.has(id) ? next.delete(id) : next.add(id);
-            return next;
+            if (prev.has(id)) return new Set();          // un-check
+            return new Set([id]);                        // single-select: clear others, check this one
         });
+        // Activate contact for the action bar without switching view
+        if (onActivate) onActivate(contact);
     };
 
     const toggleAll = () => {
@@ -124,9 +133,14 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect }) => {
                 <span className="text-muted ms-auto" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
                     {filtered.length} of {contacts.length} contact{contacts.length !== 1 ? 's' : ''}
                 </span>
-                {checked.size > 0 && (
-                    <Badge bg="primary" pill>{checked.size} selected</Badge>
-                )}
+                {checked.size > 0 && (() => {
+                    const checkedContact = sorted.find(c => checked.has(c.id || c._id));
+                    return (
+                        <Badge bg="primary" pill>
+                            {checkedContact ? `${checkedContact._name} selected` : `${checked.size} selected`}
+                        </Badge>
+                    );
+                })()}
             </div>
 
             {/* ── Table ── */}
@@ -196,7 +210,7 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect }) => {
                                             type="checkbox"
                                             checked={checked.has(id)}
                                             onChange={() => {}}
-                                            onClick={e => toggleOne(id, e)}
+                                            onClick={e => toggleOne(id, contact, e)}
                                         />
                                     </td>
                                     <td className="text-truncate" style={{ maxWidth: 160 }}>

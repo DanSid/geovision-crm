@@ -202,6 +202,17 @@ const ContactsWorkspace = ({
         setViewMode('detail'); // clicking a row in list view switches to detail
     };
 
+    /**
+     * handleActivate — like handleSelect but stays in list view.
+     * Called when a checkbox is ticked so Contact Actions (Edit/Delete) works
+     * on the checked contact without jumping away from the list.
+     */
+    const handleActivate = contact => {
+        const idx = contacts.findIndex(c => (c.id || c._id) === (contact.id || contact._id));
+        if (idx >= 0) setSelectedIndex(idx);
+        // intentionally does NOT call setViewMode
+    };
+
     /* ── Inline field change ── */
     const handleInlineChange = (field, value) =>
         setInlineForm(prev => ({ ...prev, [field]: value }));
@@ -343,6 +354,7 @@ const ContactsWorkspace = ({
                                 contacts={contacts}
                                 selectedId={contactId}
                                 onSelect={handleSelect}
+                                onActivate={handleActivate}
                             />
                         )}
                     </div>
