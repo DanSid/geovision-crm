@@ -31,6 +31,7 @@ import {
     deleteByEntityId,
 } from '../../services/api';
 import { isActivityDueNow } from '../../utils/activitySchedule';
+import { showToast } from '../../components/GlobalToast';
 
 // ── Generic CRUD thunk factory ────────────────────────────────────────────────
 // Creates add/update/delete thunks for any entity.
@@ -49,7 +50,17 @@ const crudThunks = (apiService, ADD, UPDATE, DELETE) => ({
             const { data: saved } = await apiService.create(data);
             dispatch({ type: ADD, payload: saved });
             return saved;
-        } catch {
+        } catch (err) {
+            // ⚠️ Supabase write failed — data is saved to localStorage only.
+            // On next page reload, initApp will fetch from Supabase and this
+            // record will be lost unless the database issue is resolved.
+            console.error('[CRM] Database save failed:', err?.message || err);
+            showToast(
+                'Record saved locally only — database sync failed. Data may be lost on reload. Check Supabase permissions.',
+                'warning',
+                'Database Sync Error',
+                10000
+            );
             const local = makeLocal(data);
             dispatch({ type: ADD, payload: local });
             return local;
@@ -59,14 +70,29 @@ const crudThunks = (apiService, ADD, UPDATE, DELETE) => ({
         try {
             const { data: saved } = await apiService.update(data.id, data);
             dispatch({ type: UPDATE, payload: saved });
-        } catch {
+        } catch (err) {
+            console.error('[CRM] Database update failed:', err?.message || err);
+            showToast(
+                'Update saved locally only — database sync failed.',
+                'warning',
+                'Database Sync Error',
+                7000
+            );
             dispatch({ type: UPDATE, payload: data });
         }
     },
     remove: (id) => async (dispatch) => {
         try {
             await apiService.remove(id);
-        } catch { /* still remove locally */ }
+        } catch (err) {
+            console.error('[CRM] Database delete failed:', err?.message || err);
+            showToast(
+                'Deleted locally — database sync failed. Record may reappear on reload.',
+                'warning',
+                'Database Sync Error',
+                7000
+            );
+        }
         dispatch({ type: DELETE, payload: id });
     },
 });

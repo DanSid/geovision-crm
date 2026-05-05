@@ -270,7 +270,6 @@ const ContactsWorkspace = ({
     const validate = () => {
         const errs = {};
         if (!form.firstName.trim()) errs.firstName = 'Required';
-        if (!form.email.trim())     errs.email     = 'Required';
         else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Invalid email';
         return errs;
     };
@@ -451,9 +450,9 @@ const ContactsWorkspace = ({
                                 <Form.Control placeholder="Last name" value={form.lastName} onChange={e => setField('lastName', e.target.value)} />
                             </Form.Group>
                         </Col>
-                        <Col md={4}>
+                       <Col md={4}>
                             <Form.Group className="mb-3">
-                                <Form.Label className="fs-7 fw-semibold">Email <span className="text-danger">*</span></Form.Label>
+                                <Form.Label className="fs-7 fw-semibold">Email</Form.Label>  {/* Removed <span className="text-danger">*</span> */}
                                 <Form.Control type="email" placeholder="email@example.com" value={form.email} onChange={e => setField('email', e.target.value)} isInvalid={!!errors.email} />
                                 <Form.Control.Feedback type="invalid">{errors.email}</Form.Control.Feedback>
                             </Form.Group>
