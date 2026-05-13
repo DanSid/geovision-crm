@@ -221,16 +221,19 @@ const ContactsWorkspace = ({
     const handleInlineSave = () => {
         if (!selectedContact || !inlineForm) return;
         if (!inlineForm.firstName?.trim()) { showToast('First name is required.', 'danger'); return; }
-        if (!inlineForm.email?.trim())     { showToast('Email is required.',      'danger'); return; }
+        // Email is optional — only validate format if one is provided
+        if (inlineForm.email?.trim() && !/\S+@\S+\.\S+/.test(inlineForm.email.trim())) {
+            showToast('Invalid email address format.', 'danger'); return;
+        }
 
         const editId   = selectedContact.id || selectedContact._id;
         const fullName = `${inlineForm.firstName} ${inlineForm.lastName || ''}`.trim();
 
-        // Duplicate email check (different contact)
-        const emailDupe = allContacts.find(c => {
+        // Duplicate email check — only when an email is actually provided
+        const emailDupe = inlineForm.email?.trim() ? allContacts.find(c => {
             const cId = c.id || c._id;
             return cId !== editId && c.email && c.email.toLowerCase() === inlineForm.email.toLowerCase() && !c.deleted;
-        });
+        }) : null;
         if (emailDupe) {
             if (!window.confirm(
                 `⚠️ "${getContactName(emailDupe)}" already uses this email.\n\nSave anyway?`
@@ -270,7 +273,8 @@ const ContactsWorkspace = ({
     const validate = () => {
         const errs = {};
         if (!form.firstName.trim()) errs.firstName = 'Required';
-        else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Invalid email';
+        // Email is optional — only validate format if something was typed
+        if (form.email.trim() && !/\S+@\S+\.\S+/.test(form.email.trim())) errs.email = 'Invalid email format';
         return errs;
     };
 
@@ -281,8 +285,10 @@ const ContactsWorkspace = ({
         const payload  = { ...form, createdAt: form.createdAt || new Date().toISOString() };
         const fullName = `${payload.firstName} ${payload.lastName}`.trim();
 
-        // Duplicate detection (new contact)
-        const emailDupe = allContacts.find(c => !c.deleted && c.email && c.email.toLowerCase() === payload.email.toLowerCase());
+        // Duplicate email check — only when an email is actually provided
+        const emailDupe = payload.email?.trim()
+            ? allContacts.find(c => !c.deleted && c.email && c.email.toLowerCase() === payload.email.toLowerCase())
+            : null;
         const nameDupe  = !emailDupe && allContacts.find(c => !c.deleted && getContactName(c).toLowerCase() === fullName.toLowerCase());
 
         if (emailDupe) {

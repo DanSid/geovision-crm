@@ -149,8 +149,8 @@ const ContactAppBody = ({
     const validate = () => {
         const nextErrors = {};
         if (!form.firstName.trim()) nextErrors.firstName = 'Required';
-        if (!form.email.trim()) nextErrors.email = 'Required';
-        else if (!/\S+@\S+\.\S+/.test(form.email)) nextErrors.email = 'Invalid email';
+        // Email is optional — only validate format if something was typed
+        if (form.email.trim() && !/\S+@\S+\.\S+/.test(form.email.trim())) nextErrors.email = 'Invalid email format';
         return nextErrors;
     };
 
@@ -204,7 +204,7 @@ const ContactAppBody = ({
 
     const [quickForm, setQuickForm] = useState(emptyForm);
     const handleQuickCreate = () => {
-        if (!quickForm.firstName.trim() || !quickForm.email.trim()) return;
+        if (!quickForm.firstName.trim()) return; // email is now optional
         const payload = normalizePayload(quickForm);
         addContact(payload);
         addCustomer({
