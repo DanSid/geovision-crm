@@ -20,6 +20,10 @@ import {
     ADD_VEHICLE, UPDATE_VEHICLE, DELETE_VEHICLE, INIT_VEHICLES,
     ADD_MAINTENANCE, UPDATE_MAINTENANCE, DELETE_MAINTENANCE, INIT_MAINTENANCE,
     ADD_REQUEST, UPDATE_REQUEST, DELETE_REQUEST, INIT_REQUESTS,
+    ADD_EVENT, UPDATE_EVENT, DELETE_EVENT, INIT_EVENTS,
+    ADD_EVENT_VENDOR, UPDATE_EVENT_VENDOR, DELETE_EVENT_VENDOR, INIT_EVENT_VENDORS,
+    ADD_EVENT_TEAM_MEMBER, UPDATE_EVENT_TEAM_MEMBER, DELETE_EVENT_TEAM_MEMBER, INIT_EVENT_TEAM_MEMBERS,
+    INIT_CUSTOM_DEPTS, ADD_CUSTOM_DEPT,
     PURGE_ENTITY_RELATIONS,
 } from '../constants/Crm';
 import { loadGlobalPermissions, saveGlobalPermissions, DEFAULT_PERMISSIONS } from '../../utils/permissions';
@@ -183,6 +187,33 @@ export const maintenanceReducer = makeArrayReducer(
 export const requestsReducer = makeArrayReducer(
     'gv_crm_requests', ADD_REQUEST, UPDATE_REQUEST, DELETE_REQUEST, INIT_REQUESTS
 );
+
+export const eventsReducer = makeArrayReducer(
+    'gv_events', ADD_EVENT, UPDATE_EVENT, DELETE_EVENT, INIT_EVENTS
+);
+
+export const eventVendorsReducer = makeArrayReducer(
+    'gv_event_vendors', ADD_EVENT_VENDOR, UPDATE_EVENT_VENDOR, DELETE_EVENT_VENDOR, INIT_EVENT_VENDORS
+);
+
+export const eventTeamMembersReducer = makeArrayReducer(
+    'gv_event_team_members', ADD_EVENT_TEAM_MEMBER, UPDATE_EVENT_TEAM_MEMBER, DELETE_EVENT_TEAM_MEMBER, INIT_EVENT_TEAM_MEMBERS
+);
+
+// ── Custom Departments Reducer ────────────────────────────────────────────────
+export const customDeptsReducer = (state = [], action) => {
+    switch (action.type) {
+        case INIT_CUSTOM_DEPTS:
+            return Array.isArray(action.payload) ? action.payload : [];
+        case ADD_CUSTOM_DEPT: {
+            const name = action.payload;
+            if (!name || state.includes(name)) return state;
+            return [...state, name];
+        }
+        default:
+            return state;
+    }
+};
 
 // ── Permissions Reducer ───────────────────────────────────────────────────────
 export const permissionsReducer = (state = loadPermissions(), action) => {

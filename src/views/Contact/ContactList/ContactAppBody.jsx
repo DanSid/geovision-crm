@@ -246,7 +246,7 @@ const ContactAppBody = ({
                                 </Col>
                                 <Col lg={3}>
                                     <Form.Group className="mb-3">
-                                        <Form.Control placeholder="Email*" value={quickForm.email} onChange={e => setQuickForm(f => ({ ...f, email: e.target.value }))} />
+                                        <Form.Control placeholder="Email (optional)" value={quickForm.email} onChange={e => setQuickForm(f => ({ ...f, email: e.target.value }))} />
                                     </Form.Group>
                                 </Col>
                                 <Col lg={3}>
@@ -418,7 +418,7 @@ const ContactAppBody = ({
                         </Col>
                         <Col md={6}>
                             <Form.Group>
-                                <Form.Label>Email ID <span className="text-danger">*</span></Form.Label>
+                                <Form.Label>Email ID <span className="text-muted fw-normal" style={{ fontSize: 11 }}>(optional)</span></Form.Label>
                                 <Form.Control type="email" placeholder="email@example.com" value={form.email} onChange={e => handleChange('email', e.target.value)} isInvalid={!!errors.email} />
                                 <Form.Control.Feedback type="invalid">{errors.email}</Form.Control.Feedback>
                             </Form.Group>

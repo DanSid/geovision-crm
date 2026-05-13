@@ -1,16 +1,17 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // permissions.js  —  centralised permission helpers for GeoVision CRM
 //
-// Section keys map to the six SidebarMenu group names (lowercased):
-//   '' (Dashboard) → 'dashboard'
-//   'Sales'        → 'sales'
-//   'Jira'         → 'jira'
-//   'Logistics'    → 'logistics'
-//   'Finance'      → 'finance'
-//   'Account'      → 'account'
+// Section keys map to the seven SidebarMenu group names (lowercased):
+//   '' (Dashboard)              → 'dashboard'
+//   'Sales'                     → 'sales'
+//   'Jira'                      → 'jira'
+//   'Logistics'                 → 'logistics'
+//   'Finance'                   → 'finance'
+//   'Events & Special Projects' → 'events'
+//   'Account'                   → 'account'
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const SECTION_KEYS = ['dashboard', 'sales', 'jira', 'logistics', 'finance', 'account'];
+export const SECTION_KEYS = ['dashboard', 'sales', 'jira', 'logistics', 'finance', 'events', 'account'];
 
 export const SECTION_LABELS = {
     dashboard: 'Dashboard',
@@ -18,6 +19,7 @@ export const SECTION_LABELS = {
     jira:      'Jira',
     logistics: 'Logistics',
     finance:   'Finance',
+    events:    'Events & Special Projects',
     account:   'Account',
 };
 
@@ -27,6 +29,7 @@ export const SECTION_DESCRIPTIONS = {
     jira:      'Tasks, Kanban board, Gantt and Jira tracking',
     logistics: 'Equipment, vehicles, crew, requests and maintenance',
     finance:   'Invoices, billing and financial reports',
+    events:    'Event planning, timelines, vendors and team',
     account:   'Profile, settings and account preferences',
 };
 
@@ -36,17 +39,19 @@ export const SECTION_ICONS = {
     jira:      'ri-kanban-view',
     logistics: 'ri-truck-line',
     finance:   'ri-file-list-3-line',
+    events:    'ri-calendar-event-line',
     account:   'ri-user-settings-line',
 };
 
 // SidebarMenu group.group value → section key
 export const GROUP_TO_KEY = {
-    '':          'dashboard',
-    'Sales':     'sales',
-    'Jira':      'jira',
-    'Logistics': 'logistics',
-    'Finance':   'finance',
-    'Account':   'account',
+    '':                          'dashboard',
+    'Sales':                     'sales',
+    'Jira':                      'jira',
+    'Logistics':                 'logistics',
+    'Finance':                   'finance',
+    'Events & Special Projects': 'events',
+    'Account':                   'account',
 };
 
 // Route path prefix → section key (more-specific prefixes first)
@@ -65,6 +70,7 @@ export const ROUTE_TO_SECTION = [
     { prefix: '/apps/todo',                    key: 'jira'      },
     { prefix: '/apps/jira',                    key: 'jira'      },
     { prefix: '/apps/logistics',               key: 'logistics' },
+    { prefix: '/apps/events',                 key: 'events'    },
     { prefix: '/apps/accounts',               key: 'finance'   },
     { prefix: '/apps/invoices',               key: 'finance'   },
     { prefix: '/apps/finance',               key: 'finance'   },
@@ -78,6 +84,7 @@ export const DEFAULT_PERMISSIONS = {
     jira:      true,
     logistics: true,
     finance:   true,
+    events:    true,
     account:   true,
 };
 
@@ -87,7 +94,7 @@ export const DEFAULT_PERMISSIONS = {
 const migrateOld = (raw) => {
     if (!raw || typeof raw !== 'object') return {};
     // Already new schema if it has any new-style key
-    if ('sales' in raw || 'jira' in raw || 'logistics' in raw || 'finance' in raw) {
+    if ('sales' in raw || 'jira' in raw || 'logistics' in raw || 'finance' in raw || 'events' in raw) {
         return raw;
     }
     return {
@@ -99,6 +106,8 @@ const migrateOld = (raw) => {
         jira:      !(raw.tasks === false && raw.scrumboard === false),
         // Logistics: wasn't in old schema → default true
         logistics: true,
+        // Events: wasn't in old schema → default true
+        events:    true,
         // Finance: accounts key
         finance:   raw.accounts !== false,
         // Account: settings key

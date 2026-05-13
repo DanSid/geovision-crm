@@ -106,6 +106,9 @@ export const crewMembersApi       = buildCrud('crew_members');
 export const vehiclesApi          = buildCrud('vehicles');
 export const maintenanceApi       = buildCrud('maintenance');
 export const requestsApi          = buildCrud('requests');
+export const eventsApi            = buildCrud('events');
+export const eventVendorsApi      = buildCrud('event_vendors');
+export const eventTeamMembersApi  = buildCrud('event_team_members');
 
 /* ── Cascade helper: delete all rows where data->>'entityId' = entityId ─── */
 export const deleteByEntityId = async (table, entityId) => {

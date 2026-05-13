@@ -48,6 +48,9 @@ const loadCrmPreloadedState = () => {
         vehicles:         safeLoad('gv_crm_vehicles'),
         maintenance:      safeLoad('gv_crm_maintenance'),
         requests:         safeLoad('gv_crm_requests'),
+        events:           safeLoad('gv_events'),
+        eventVendors:     safeLoad('gv_event_vendors'),
+        eventTeamMembers: safeLoad('gv_event_team_members'),
         ...(permissions ? { permissions } : {}),
         ...(pipeline !== null ? { pipeline } : {}),
     };
@@ -74,6 +77,9 @@ const saveCrmState = (state) => {
     safeSave('gv_crm_vehicles',           state.vehicles);
     safeSave('gv_crm_maintenance',        state.maintenance);
     safeSave('gv_crm_requests',           state.requests);
+    safeSave('gv_events',                 state.events);
+    safeSave('gv_event_vendors',          state.eventVendors);
+    safeSave('gv_event_team_members',     state.eventTeamMembers);
     if (state.permissions) safeSave('gv_crm_permissions', state.permissions);
     if (state.pipeline !== undefined) safeSave('gv_crm_pipeline', state.pipeline);
 };

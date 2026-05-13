@@ -227,6 +227,60 @@ export const SidebarMenu = [
 
    
 
+    // ── Events & Special Projects ─────────────────────────────────────────────
+    {
+        group: 'Events & Special Projects',
+        contents: [
+            {
+                name: 'Overview',
+                icon: <Icons.LayoutDashboard />,
+                path: '/apps/events',
+                grp_name: 'events',
+            },
+            {
+                name: 'Events',
+                icon: <Icons.CalendarEvent />,
+                path: '/apps/events',
+                grp_name: 'events',
+            },
+            {
+                name: 'Planning',
+                icon: <Icons.ClipboardList />,
+                path: '/apps/events',
+                grp_name: 'events',
+            },
+            {
+                name: 'Analytics',
+                icon: <Icons.ChartBar />,
+                path: '/apps/events',
+                grp_name: 'events',
+            },
+            {
+                id: 'dash_events_operations',
+                name: 'Operations',
+                icon: <Icons.Settings />,
+                path: '/apps/events',
+                childrens: [
+                    {
+                        name: 'Timeline',
+                        path: '/apps/events',
+                        grp_name: 'events',
+                    },
+                    {
+                        name: 'Vendors',
+                        path: '/apps/events',
+                        grp_name: 'events',
+                    },
+                    {
+                        name: 'Team',
+                        path: '/apps/events',
+                        grp_name: 'events',
+                    },
+                ],
+            },
+        ],
+    },
+
     // ── Account ───────────────────────────────────────────────────────────────
     {
         group: 'Account',

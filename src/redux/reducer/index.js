@@ -28,6 +28,10 @@ import {
     vehiclesReducer,
     maintenanceReducer,
     requestsReducer,
+    eventsReducer,
+    eventVendorsReducer,
+    eventTeamMembersReducer,
+    customDeptsReducer,
 } from './Crm';
 
 const reducers = combineReducers({
@@ -59,6 +63,10 @@ const reducers = combineReducers({
     vehicles: vehiclesReducer,
     maintenance: maintenanceReducer,
     requests: requestsReducer,
+    events: eventsReducer,
+    eventVendors: eventVendorsReducer,
+    eventTeamMembers: eventTeamMembersReducer,
+    customDepts: customDeptsReducer,
 });
 
 export default reducers;

@@ -123,3 +123,25 @@ export const ADD_REQUEST    = 'ADD_REQUEST';
 export const UPDATE_REQUEST = 'UPDATE_REQUEST';
 export const DELETE_REQUEST = 'DELETE_REQUEST';
 export const INIT_REQUESTS  = 'INIT_REQUESTS';
+
+// Events & Special Projects
+export const ADD_EVENT    = 'ADD_EVENT';
+export const UPDATE_EVENT = 'UPDATE_EVENT';
+export const DELETE_EVENT = 'DELETE_EVENT';
+export const INIT_EVENTS  = 'INIT_EVENTS';
+
+// Event Vendors
+export const ADD_EVENT_VENDOR    = 'ADD_EVENT_VENDOR';
+export const UPDATE_EVENT_VENDOR = 'UPDATE_EVENT_VENDOR';
+export const DELETE_EVENT_VENDOR = 'DELETE_EVENT_VENDOR';
+export const INIT_EVENT_VENDORS  = 'INIT_EVENT_VENDORS';
+
+// Event Team Members
+export const ADD_EVENT_TEAM_MEMBER    = 'ADD_EVENT_TEAM_MEMBER';
+export const UPDATE_EVENT_TEAM_MEMBER = 'UPDATE_EVENT_TEAM_MEMBER';
+export const DELETE_EVENT_TEAM_MEMBER = 'DELETE_EVENT_TEAM_MEMBER';
+export const INIT_EVENT_TEAM_MEMBERS  = 'INIT_EVENT_TEAM_MEMBERS';
+
+// Custom Departments (synced via Supabase settings)
+export const INIT_CUSTOM_DEPTS = 'INIT_CUSTOM_DEPTS';
+export const ADD_CUSTOM_DEPT   = 'ADD_CUSTOM_DEPT';

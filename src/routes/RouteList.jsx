@@ -43,6 +43,7 @@ import TaskList from "../views/Todo/Tasklist";
 import Opportunities from "../views/Opportunities";
 import Customers from "../views/Customers";
 import Settings from "../views/Settings";
+import EventsApp from "../views/Events";
 import JiraCalendar from "../views/JiraCalendar";
 import LogisticsCalendar from "../views/LogisticsCalendar";
 import JiraReport from "../views/JiraReport";
@@ -132,6 +133,8 @@ export const routes = [
     // New CRM Pages
     { path: 'apps/opportunities', exact: true, component: Opportunities },
     { path: 'apps/customers', exact: true, component: Customers },
+    // Events & Special Projects
+    { path: 'apps/events', exact: true, component: EventsApp },
     { path: 'settings', exact: true, component: Settings },
     //Pages
     { path: 'pages/profile', exact: true, component: Profile },

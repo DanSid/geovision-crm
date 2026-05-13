@@ -20,6 +20,10 @@ import {
     ADD_VEHICLE, UPDATE_VEHICLE, DELETE_VEHICLE, INIT_VEHICLES,
     ADD_MAINTENANCE, UPDATE_MAINTENANCE, DELETE_MAINTENANCE, INIT_MAINTENANCE,
     ADD_REQUEST, UPDATE_REQUEST, DELETE_REQUEST, INIT_REQUESTS,
+    ADD_EVENT, UPDATE_EVENT, DELETE_EVENT, INIT_EVENTS,
+    ADD_EVENT_VENDOR, UPDATE_EVENT_VENDOR, DELETE_EVENT_VENDOR, INIT_EVENT_VENDORS,
+    ADD_EVENT_TEAM_MEMBER, UPDATE_EVENT_TEAM_MEMBER, DELETE_EVENT_TEAM_MEMBER, INIT_EVENT_TEAM_MEMBERS,
+    INIT_CUSTOM_DEPTS, ADD_CUSTOM_DEPT,
     PURGE_ENTITY_RELATIONS,
 } from '../constants/Crm';
 
@@ -28,6 +32,7 @@ import {
     activitiesApi, notesApi, historyApi, documentsApi, secondaryContactsApi,
     invoicesApi, tasksApi, boardsApi, equipmentApi, stockLocationsApi,
     crewMembersApi, vehiclesApi, maintenanceApi, requestsApi, settingsApi,
+    eventsApi, eventVendorsApi, eventTeamMembersApi,
     deleteByEntityId,
 } from '../../services/api';
 import { isActivityDueNow } from '../../utils/activitySchedule';
@@ -344,6 +349,31 @@ export const addRequest    = reqCrud.add;
 export const updateRequest = reqCrud.update;
 export const deleteRequest = reqCrud.remove;
 
+// ── CUSTOM DEPARTMENTS ────────────────────────────────────────────────────────
+export const addCustomDept = (name) => async (dispatch, getState) => {
+    const current = getState().customDepts || [];
+    if (!name || current.includes(name)) return;
+    const updated = [...current, name];
+    dispatch({ type: ADD_CUSTOM_DEPT, payload: name });
+    try { await settingsApi.set('departments', updated); } catch { /* offline */ }
+};
+
+// ── EVENTS & SPECIAL PROJECTS ─────────────────────────────────────────────────
+const eventCrud = crudThunks(eventsApi, ADD_EVENT, UPDATE_EVENT, DELETE_EVENT);
+export const addEvent    = eventCrud.add;
+export const updateEvent = eventCrud.update;
+export const deleteEvent = eventCrud.remove;
+
+const eventVendorCrud = crudThunks(eventVendorsApi, ADD_EVENT_VENDOR, UPDATE_EVENT_VENDOR, DELETE_EVENT_VENDOR);
+export const addEventVendor    = eventVendorCrud.add;
+export const updateEventVendor = eventVendorCrud.update;
+export const deleteEventVendor = eventVendorCrud.remove;
+
+const eventTeamMemberCrud = crudThunks(eventTeamMembersApi, ADD_EVENT_TEAM_MEMBER, UPDATE_EVENT_TEAM_MEMBER, DELETE_EVENT_TEAM_MEMBER);
+export const addEventTeamMember    = eventTeamMemberCrud.add;
+export const updateEventTeamMember = eventTeamMemberCrud.update;
+export const deleteEventTeamMember = eventTeamMemberCrud.remove;
+
 // ═════════════════════════════════════════════════════════════════════════════
 // APP INITIALIZER — fetch all data from MongoDB on startup
 // ═════════════════════════════════════════════════════════════════════════════
@@ -357,7 +387,8 @@ export const initApp = () => async (dispatch) => {
         activities, notes, history, documents, secondaryContacts,
         invoices, tasks, boards, equipment, stockLocations,
         crewMembers, vehicles, maintenance, requests,
-        pipeline, permissions,
+        events, eventVendors, eventTeamMembers,
+        pipeline, permissions, departments,
     ] = await Promise.all([
         tryGet(contactsApi.getAll),
         tryGet(opportunitiesApi.getAll),
@@ -378,31 +409,39 @@ export const initApp = () => async (dispatch) => {
         tryGet(vehiclesApi.getAll),
         tryGet(maintenanceApi.getAll),
         tryGet(requestsApi.getAll),
+        tryGet(eventsApi.getAll),
+        tryGet(eventVendorsApi.getAll),
+        tryGet(eventTeamMembersApi.getAll),
         tryGet(() => settingsApi.get('pipeline')),
         tryGet(() => settingsApi.get('permissions')),
+        tryGet(() => settingsApi.get('departments')),
     ]);
 
-    if (contacts)          dispatch({ type: INIT_CONTACTS,          payload: contacts });
-    if (opportunities)     dispatch({ type: INIT_OPPORTUNITIES,     payload: opportunities });
-    if (customers)         dispatch({ type: INIT_CUSTOMERS,         payload: customers });
-    if (companies)         dispatch({ type: INIT_COMPANIES,         payload: companies });
-    if (groups)            dispatch({ type: INIT_GROUPS,            payload: groups });
-    if (activities)        dispatch({ type: INIT_ACTIVITIES,        payload: activities });
-    if (notes)             dispatch({ type: INIT_NOTES,             payload: notes });
-    if (history)           dispatch({ type: INIT_HISTORY,           payload: history });
-    if (documents)         dispatch({ type: INIT_DOCUMENTS,         payload: documents });
-    if (secondaryContacts) dispatch({ type: INIT_SECONDARY_CONTACTS,payload: secondaryContacts });
-    if (invoices)          dispatch({ type: INIT_INVOICES,          payload: invoices });
-    if (tasks)             dispatch({ type: INIT_TASKS,             payload: tasks });
-    if (boards)            dispatch({ type: INIT_BOARDS,            payload: boards });
-    if (equipment)         dispatch({ type: INIT_EQUIPMENT,         payload: equipment });
-    if (stockLocations)    dispatch({ type: INIT_STOCK_LOCATIONS,   payload: stockLocations });
-    if (crewMembers)       dispatch({ type: INIT_CREW_MEMBERS,      payload: crewMembers });
-    if (vehicles)          dispatch({ type: INIT_VEHICLES,          payload: vehicles });
-    if (maintenance)       dispatch({ type: INIT_MAINTENANCE,       payload: maintenance });
-    if (requests)          dispatch({ type: INIT_REQUESTS,          payload: requests });
-    if (pipeline)          dispatch({ type: INIT_PIPELINE,          payload: pipeline });
-    if (permissions)       dispatch({ type: INIT_PERMISSIONS,       payload: permissions });
+    if (contacts)          dispatch({ type: INIT_CONTACTS,            payload: contacts });
+    if (opportunities)     dispatch({ type: INIT_OPPORTUNITIES,       payload: opportunities });
+    if (customers)         dispatch({ type: INIT_CUSTOMERS,           payload: customers });
+    if (companies)         dispatch({ type: INIT_COMPANIES,           payload: companies });
+    if (groups)            dispatch({ type: INIT_GROUPS,              payload: groups });
+    if (activities)        dispatch({ type: INIT_ACTIVITIES,          payload: activities });
+    if (notes)             dispatch({ type: INIT_NOTES,               payload: notes });
+    if (history)           dispatch({ type: INIT_HISTORY,             payload: history });
+    if (documents)         dispatch({ type: INIT_DOCUMENTS,           payload: documents });
+    if (secondaryContacts) dispatch({ type: INIT_SECONDARY_CONTACTS,  payload: secondaryContacts });
+    if (invoices)          dispatch({ type: INIT_INVOICES,            payload: invoices });
+    if (tasks)             dispatch({ type: INIT_TASKS,               payload: tasks });
+    if (boards)            dispatch({ type: INIT_BOARDS,              payload: boards });
+    if (equipment)         dispatch({ type: INIT_EQUIPMENT,           payload: equipment });
+    if (stockLocations)    dispatch({ type: INIT_STOCK_LOCATIONS,     payload: stockLocations });
+    if (crewMembers)       dispatch({ type: INIT_CREW_MEMBERS,        payload: crewMembers });
+    if (vehicles)          dispatch({ type: INIT_VEHICLES,            payload: vehicles });
+    if (maintenance)       dispatch({ type: INIT_MAINTENANCE,         payload: maintenance });
+    if (requests)          dispatch({ type: INIT_REQUESTS,            payload: requests });
+    if (events)            dispatch({ type: INIT_EVENTS,              payload: events });
+    if (eventVendors)      dispatch({ type: INIT_EVENT_VENDORS,       payload: eventVendors });
+    if (eventTeamMembers)  dispatch({ type: INIT_EVENT_TEAM_MEMBERS,  payload: eventTeamMembers });
+    if (pipeline)          dispatch({ type: INIT_PIPELINE,            payload: pipeline });
+    if (permissions)       dispatch({ type: INIT_PERMISSIONS,         payload: permissions });
+    if (departments)       dispatch({ type: INIT_CUSTOM_DEPTS,        payload: departments });
 };
 
 // ═════════════════════════════════════════════════════════════════════════════

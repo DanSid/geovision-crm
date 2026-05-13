@@ -11,7 +11,7 @@ import ContactListTable      from './ContactListTable';
 import EntityTabSet          from '../shared/EntityTabSet';
 import SecondaryContactsTab  from '../ContactDetail/tabs/SecondaryContactsTab';
 
-import { addContact, updateContact, deleteContact, addCustomer, updateCustomer } from '../../../redux/action/Crm';
+import { addContact, updateContact, deleteContact, addCustomer, updateCustomer, addCustomDept } from '../../../redux/action/Crm';
 import { getContactName } from '../../../utils/contactWorkspace';
 import { showToast } from '../../../components/GlobalToast';
 
@@ -27,26 +27,24 @@ const DEFAULT_DEPARTMENTS = [
 const SALUTATIONS = ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.', 'Rev.', 'Sir', 'Lady'];
 
 /* ── Dept dropdown with add-custom (used in Add modal) ───────────────────── */
-const DepartmentSelect = ({ value, onChange, size = 'md' }) => {
-    const [customDepts, setCustomDepts] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('gv_custom_depts') || '[]'); } catch { return []; }
-    });
+const DepartmentSelect = ({ value, onChange, size = 'md', customDepts = [], onAddDept }) => {
     const [addingNew, setAddingNew] = useState(false);
     const [newDept, setNewDept]     = useState('');
+
     const allDepts = useMemo(
         () => [...new Set([...DEFAULT_DEPARTMENTS, ...customDepts])].sort(),
         [customDepts]
     );
+
     const handleAdd = () => {
         const t = newDept.trim();
         if (!t) return;
-        const updated = [...customDepts, t];
-        setCustomDepts(updated);
-        localStorage.setItem('gv_custom_depts', JSON.stringify(updated));
+        if (onAddDept) onAddDept(t);
         onChange(t);
         setNewDept('');
         setAddingNew(false);
     };
+
     if (addingNew) {
         return (
             <InputGroup size="sm">
@@ -88,11 +86,13 @@ const EMPTY = {
 const ContactsWorkspace = ({
     contacts: allContacts = [],
     customers = [],
+    customDepts = [],
     addContact,
     updateContact,
     deleteContact,
     addCustomer,
     updateCustomer,
+    addCustomDept,
 }) => {
     /* ── Sorted visible list ── */
     const contacts = useMemo(
@@ -458,7 +458,7 @@ const ContactsWorkspace = ({
                         </Col>
                        <Col md={4}>
                             <Form.Group className="mb-3">
-                                <Form.Label className="fs-7 fw-semibold">Email</Form.Label>  {/* Removed <span className="text-danger">*</span> */}
+                                <Form.Label className="fs-7 fw-semibold">Email <span className="text-muted fw-normal" style={{ fontSize: 11 }}>(optional)</span></Form.Label>
                                 <Form.Control type="email" placeholder="email@example.com" value={form.email} onChange={e => setField('email', e.target.value)} isInvalid={!!errors.email} />
                                 <Form.Control.Feedback type="invalid">{errors.email}</Form.Control.Feedback>
                             </Form.Group>
@@ -484,7 +484,7 @@ const ContactsWorkspace = ({
                         <Col md={4}>
                             <Form.Group className="mb-3">
                                 <Form.Label className="fs-7 fw-semibold">Department</Form.Label>
-                                <DepartmentSelect value={form.department} onChange={v => setField('department', v)} />
+                                <DepartmentSelect value={form.department} onChange={v => setField('department', v)} customDepts={customDepts} onAddDept={addCustomDept} />
                             </Form.Group>
                         </Col>
                         <Col md={4}>
@@ -535,5 +535,5 @@ const ContactsWorkspace = ({
     );
 };
 
-const mapStateToProps = ({ contacts, customers }) => ({ contacts, customers });
-export default connect(mapStateToProps, { addContact, updateContact, deleteContact, addCustomer, updateCustomer })(ContactsWorkspace);
+const mapStateToProps = ({ contacts, customers, customDepts }) => ({ contacts, customers, customDepts });
+export default connect(mapStateToProps, { addContact, updateContact, deleteContact, addCustomer, updateCustomer, addCustomDept })(ContactsWorkspace);
