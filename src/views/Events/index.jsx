@@ -37,7 +37,7 @@ const TAB_TITLES = {
     team:      'Operations · Team',
 };
 
-const EventsApp = ({ events, onAdd, onUpdate, onDelete }) => {
+const EventsApp = ({ events, clientOptions, onAdd, onUpdate, onDelete }) => {
     const [tab, setTab]         = useState('overview');
     const [modalOpen, setModal] = useState(false);
     const [editing, setEditing] = useState(null);
@@ -164,12 +164,24 @@ const EventsApp = ({ events, onAdd, onUpdate, onDelete }) => {
                 event={editing}
                 onSave={handleSave}
                 onDelete={handleDelete}
+                clientOptions={clientOptions}
             />
         </div>
     );
 };
 
-const mapState = (state) => ({ events: state.events || [] });
+const mapState = (state) => {
+    const opportunities = state.opportunities || [];
+    const clientSet = new Set();
+    opportunities.forEach(o => {
+        if (o.name?.trim())    clientSet.add(o.name.trim());
+        if (o.company?.trim()) clientSet.add(o.company.trim());
+    });
+    return {
+        events:        state.events || [],
+        clientOptions: [...clientSet].sort(),
+    };
+};
 const mapDispatch = (dispatch) => ({
     onAdd:    (data) => dispatch(addEvent(data)),
     onUpdate: (data) => dispatch(updateEvent(data)),

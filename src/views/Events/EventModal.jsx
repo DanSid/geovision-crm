@@ -26,6 +26,8 @@ const DEL_STATUSES = [
     { value: 'completed',   label: 'Completed' },
 ];
 
+const emptyDel = () => ({ name: '', vendor: '', status: 'planned', details: '', description: '' });
+
 const empty = () => ({
     name: '', date: '', setup: '', enddate: '', teardown: '',
     venue: '', lead: 'Femi', status: 'planned',
@@ -34,10 +36,16 @@ const empty = () => ({
     deliverables: [],
 });
 
-const EventModal = ({ show, onHide, event, onSave, onDelete }) => {
-    const [form, setForm]   = useState(empty());
-    const [newDel, setNewDel] = useState({ name: '', vendor: '', status: 'planned' });
-    const [err, setErr]     = useState('');
+const delBadge = (s) => {
+    if (s === 'completed')   return 'success';
+    if (s === 'in_progress') return 'primary';
+    return 'warning';
+};
+
+const EventModal = ({ show, onHide, event, onSave, onDelete, clientOptions = [] }) => {
+    const [form, setForm]     = useState(empty());
+    const [newDel, setNewDel] = useState(emptyDel());
+    const [err, setErr]       = useState('');
 
     useEffect(() => {
         if (event) {
@@ -50,24 +58,25 @@ const EventModal = ({ show, onHide, event, onSave, onDelete }) => {
             setForm(empty());
         }
         setErr('');
-        setNewDel({ name: '', vendor: '', status: 'planned' });
+        setNewDel(emptyDel());
     }, [event, show]);
 
     const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+    const setDel = (k, v) => setNewDel(n => ({ ...n, [k]: v }));
 
     const addDel = () => {
         if (!newDel.name.trim()) return;
         setForm(f => ({ ...f, deliverables: [...f.deliverables, { ...newDel }] }));
-        setNewDel({ name: '', vendor: '', status: 'planned' });
+        setNewDel(emptyDel());
     };
 
     const removeDel = (idx) =>
         setForm(f => ({ ...f, deliverables: f.deliverables.filter((_, i) => i !== idx) }));
 
-    const updateDelStatus = (idx, s) =>
+    const updateDel = (idx, key, val) =>
         setForm(f => ({
             ...f,
-            deliverables: f.deliverables.map((d, i) => i === idx ? { ...d, status: s } : d),
+            deliverables: f.deliverables.map((d, i) => i === idx ? { ...d, [key]: val } : d),
         }));
 
     const handleSave = () => {
@@ -79,14 +88,8 @@ const EventModal = ({ show, onHide, event, onSave, onDelete }) => {
         onSave(finalForm);
     };
 
-    const delBadge = (s) => {
-        if (s === 'completed')  return 'success';
-        if (s === 'in_progress') return 'primary';
-        return 'warning';
-    };
-
     return (
-        <Modal show={show} onHide={onHide} size="lg" scrollable>
+        <Modal show={show} onHide={onHide} size="xl" scrollable>
             <Modal.Header closeButton>
                 <Modal.Title>{event ? 'Edit Event' : 'New Event'}</Modal.Title>
             </Modal.Header>
@@ -95,7 +98,9 @@ const EventModal = ({ show, onHide, event, onSave, onDelete }) => {
 
                 {/* Basic Information */}
                 <div className="mb-3 pb-2 border-bottom">
-                    <div className="fw-semibold mb-2" style={{ fontSize: 13 }}><i className="bi bi-info-circle me-1"></i> Basic information</div>
+                    <div className="fw-semibold mb-2" style={{ fontSize: 13 }}>
+                        <i className="bi bi-info-circle me-1" /> Basic information
+                    </div>
                     <Row className="g-2">
                         <Col xs={12}>
                             <Form.Label style={{ fontSize: 12 }}>Event name *</Form.Label>
@@ -138,11 +143,22 @@ const EventModal = ({ show, onHide, event, onSave, onDelete }) => {
 
                 {/* Client & Team */}
                 <div className="mb-3 pb-2 border-bottom">
-                    <div className="fw-semibold mb-2" style={{ fontSize: 13 }}>Client & team</div>
+                    <div className="fw-semibold mb-2" style={{ fontSize: 13 }}>Client &amp; team</div>
                     <Row className="g-2">
                         <Col xs={6}>
                             <Form.Label style={{ fontSize: 12 }}>Client / organisation</Form.Label>
-                            <Form.Control size="sm" value={form.client} onChange={e => set('client', e.target.value)} placeholder="Client name" />
+                            {/* datalist gives typed-input + dropdown suggestions from contacts & opportunities */}
+                            <Form.Control
+                                size="sm"
+                                list="gv-client-options"
+                                value={form.client}
+                                onChange={e => set('client', e.target.value)}
+                                placeholder="Start typing or select…"
+                                autoComplete="off"
+                            />
+                            <datalist id="gv-client-options">
+                                {clientOptions.map(c => <option key={c} value={c} />)}
+                            </datalist>
                         </Col>
                         <Col xs={6}>
                             <Form.Label style={{ fontSize: 12 }}>Client contact</Form.Label>
@@ -161,7 +177,7 @@ const EventModal = ({ show, onHide, event, onSave, onDelete }) => {
 
                 {/* Logistics & Budget */}
                 <div className="mb-3 pb-2 border-bottom">
-                    <div className="fw-semibold mb-2" style={{ fontSize: 13 }}>Logistics & budget</div>
+                    <div className="fw-semibold mb-2" style={{ fontSize: 13 }}>Logistics &amp; budget</div>
                     <Row className="g-2">
                         <Col xs={6} md={3}>
                             <Form.Label style={{ fontSize: 12 }}>Budget (GHS)</Form.Label>
@@ -190,47 +206,107 @@ const EventModal = ({ show, onHide, event, onSave, onDelete }) => {
                     </Row>
                 </div>
 
-                {/* Deliverables */}
+                {/* Deliverables & Items */}
                 <div>
-                    <div className="fw-semibold mb-2" style={{ fontSize: 13 }}>Deliverables & items</div>
-                    <p style={{ fontSize: 11, color: '#6b7280' }}>List all equipment, services, branding and logistics items required for this event.</p>
+                    <div className="fw-semibold mb-1" style={{ fontSize: 13 }}>Deliverables &amp; items</div>
+                    <p style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>
+                        List all equipment, services, branding and logistics items required for this event.
+                    </p>
 
+                    {/* Saved deliverables list */}
                     {form.deliverables.length > 0 && (
-                        <div className="mb-2">
+                        <div className="mb-3">
+                            {/* Header row */}
+                            <div className="d-flex gap-2 mb-1 px-2" style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>
+                                <div style={{ flex: 2 }}>Item</div>
+                                <div style={{ flex: 1.5 }}>Vendor</div>
+                                <div style={{ flex: 2 }}>Details</div>
+                                <div style={{ flex: 2 }}>Description</div>
+                                <div style={{ width: 110 }}>Status</div>
+                                <div style={{ width: 24 }} />
+                            </div>
                             {form.deliverables.map((d, i) => (
-                                <div key={i} className="d-flex align-items-center gap-2 mb-1 p-2 rounded" style={{ background: '#f9fafb', fontSize: 12 }}>
-                                    <div style={{ flex: 1 }}>{d.name}</div>
-                                    <div style={{ color: '#6b7280', minWidth: 80 }}>{d.vendor}</div>
-                                    <Form.Select size="sm" style={{ width: 120 }} value={d.status} onChange={e => updateDelStatus(i, e.target.value)}>
-                                        {DEL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                                    </Form.Select>
-                                    <Badge bg={delBadge(d.status)} style={{ fontSize: 10 }}>
-                                        {DEL_STATUSES.find(s => s.value === d.status)?.label}
-                                    </Badge>
-                                    <button className="btn btn-sm btn-icon btn-flush-danger" onClick={() => removeDel(i)}>
-                                        <Trash2 size={12} />
-                                    </button>
+                                <div key={i} className="mb-1 p-2 rounded border" style={{ fontSize: 12, background: '#f9fafb' }}>
+                                    <div className="d-flex align-items-center gap-2">
+                                        <div style={{ flex: 2, fontWeight: 600 }}>{d.name}</div>
+                                        <div style={{ flex: 1.5, color: '#6b7280' }}>{d.vendor || <span className="text-muted fst-italic">—</span>}</div>
+                                        <div style={{ flex: 2, color: '#374151' }}>{d.details || <span className="text-muted fst-italic">—</span>}</div>
+                                        <div style={{ flex: 2, color: '#374151' }}>{d.description || <span className="text-muted fst-italic">—</span>}</div>
+                                        <Form.Select
+                                            size="sm"
+                                            style={{ width: 110 }}
+                                            value={d.status}
+                                            onChange={e => updateDel(i, 'status', e.target.value)}
+                                        >
+                                            {DEL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                        </Form.Select>
+                                        <button className="btn btn-sm btn-icon btn-flush-danger flex-shrink-0" onClick={() => removeDel(i)}>
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    <div className="d-flex gap-2 align-items-end">
-                        <div style={{ flex: 2 }}>
-                            <Form.Label style={{ fontSize: 11 }}>Item</Form.Label>
-                            <Form.Control size="sm" value={newDel.name} onChange={e => setNewDel(n => ({ ...n, name: e.target.value }))} placeholder="e.g. LED Screen P3 4m × 2.5m" onKeyDown={e => e.key === 'Enter' && addDel()} />
+                    {/* New deliverable input */}
+                    <div className="p-2 rounded border">
+                        <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>Add item</div>
+                        {/* Row 1: Item · Vendor · Status · + */}
+                        <div className="d-flex gap-2 align-items-end mb-2">
+                            <div style={{ flex: 2 }}>
+                                <Form.Label style={{ fontSize: 11, marginBottom: 2 }}>Item *</Form.Label>
+                                <Form.Control
+                                    size="sm"
+                                    value={newDel.name}
+                                    onChange={e => setDel('name', e.target.value)}
+                                    placeholder="e.g. LED Screen P3 4m × 2.5m"
+                                    onKeyDown={e => e.key === 'Enter' && addDel()}
+                                />
+                            </div>
+                            <div style={{ flex: 1.5 }}>
+                                <Form.Label style={{ fontSize: 11, marginBottom: 2 }}>Vendor / supplier</Form.Label>
+                                <Form.Control
+                                    size="sm"
+                                    value={newDel.vendor}
+                                    onChange={e => setDel('vendor', e.target.value)}
+                                    placeholder="Vendor name"
+                                    onKeyDown={e => e.key === 'Enter' && addDel()}
+                                />
+                            </div>
+                            <div style={{ width: 120 }}>
+                                <Form.Label style={{ fontSize: 11, marginBottom: 2 }}>Status</Form.Label>
+                                <Form.Select size="sm" value={newDel.status} onChange={e => setDel('status', e.target.value)}>
+                                    {DEL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                                </Form.Select>
+                            </div>
+                            <Button size="sm" variant="primary" onClick={addDel} style={{ alignSelf: 'flex-end' }}>
+                                <Plus size={14} />
+                            </Button>
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <Form.Label style={{ fontSize: 11 }}>Vendor / supplier</Form.Label>
-                            <Form.Control size="sm" value={newDel.vendor} onChange={e => setNewDel(n => ({ ...n, vendor: e.target.value }))} placeholder="Vendor name" onKeyDown={e => e.key === 'Enter' && addDel()} />
+                        {/* Row 2: Details · Description */}
+                        <div className="d-flex gap-2">
+                            <div style={{ flex: 1 }}>
+                                <Form.Label style={{ fontSize: 11, marginBottom: 2 }}>Details</Form.Label>
+                                <Form.Control
+                                    size="sm"
+                                    value={newDel.details}
+                                    onChange={e => setDel('details', e.target.value)}
+                                    placeholder="Draping, Led Screen, PA System, Trusses…"
+                                    onKeyDown={e => e.key === 'Enter' && addDel()}
+                                />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <Form.Label style={{ fontSize: 11, marginBottom: 2 }}>Description</Form.Label>
+                                <Form.Control
+                                    size="sm"
+                                    value={newDel.description}
+                                    onChange={e => setDel('description', e.target.value)}
+                                    placeholder="Additional notes or instructions…"
+                                    onKeyDown={e => e.key === 'Enter' && addDel()}
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <Form.Label style={{ fontSize: 11 }}>Status</Form.Label>
-                            <Form.Select size="sm" value={newDel.status} onChange={e => setNewDel(n => ({ ...n, status: e.target.value }))}>
-                                {DEL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                            </Form.Select>
-                        </div>
-                        <Button size="sm" variant="primary" onClick={addDel}><Plus size={14} /></Button>
                     </div>
                 </div>
             </Modal.Body>
@@ -241,7 +317,7 @@ const EventModal = ({ show, onHide, event, onSave, onDelete }) => {
                     </Button>
                 )}
                 <Button variant="outline-secondary" onClick={onHide}>Cancel</Button>
-                <Button variant="primary" onClick={handleSave}>Save event</Button>
+                <Button variant="primary" onClick={handleSave}>Save Event</Button>
             </Modal.Footer>
         </Modal>
     );
