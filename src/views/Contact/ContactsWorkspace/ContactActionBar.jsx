@@ -5,6 +5,7 @@ import {
     ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight,
     List, Layout, Mail, Clock, FileText, CheckSquare, Calendar, Phone, Plus, Save,
 } from 'react-feather';
+import { useHistory } from 'react-router-dom';
 import { getContactName } from '../../../utils/contactWorkspace';
 import { addNote, addTask, addActivity, addHistoryEntry } from '../../../redux/action/Crm';
 import ActivityDateTimePicker from '../../../components/ActivityDateTimePicker';
@@ -44,6 +45,7 @@ const ContactActionBar = ({
     addActivity,
     addHistoryEntry,
 }) => {
+    const history = useHistory();
     const [modal, setModal] = useState(null); // 'note' | 'task' | 'meeting' | 'call' | 'history'
     const [fd, setFd] = useState({});         // form data
 
@@ -228,6 +230,9 @@ const ContactActionBar = ({
                             <Dropdown.Menu align="end">
                                 <Dropdown.Item onClick={onCreateContact}>
                                     <i className="ri-user-add-line me-2" />New Contact
+                                </Dropdown.Item>
+                                <Dropdown.Item onClick={() => history.push('/apps/contacts/import')}>
+                                    <i className="ri-file-excel-line me-2" />Import Bulk Contacts
                                 </Dropdown.Item>
                                 <Dropdown.Divider />
                                 <Dropdown.Item onClick={() => open('note')} disabled={!hasContact}>

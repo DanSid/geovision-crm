@@ -12,6 +12,7 @@ import ContactGroups from "../views/Contact/Groups";
 import ContactList from "../views/Contact/ContactList";
 import ContactsWorkspace from "../views/Contact/ContactsWorkspace";
 import EditContact from "../views/Contact/EditContact";
+import ImportContacts from "../views/Contact/ImportContacts";
 import Dashboard from "../views/Dashboard";
 import Email from "../views/Email";
 import GridView from "../views/FileManager/GridView";
@@ -99,6 +100,7 @@ export const routes = [
     { path: 'apps/contacts/groups', exact: true, component: ContactGroups },
     { path: 'apps/contacts/detail/:id', exact: true, component: ContactDetail },
     { path: 'apps/contacts/edit-contact', exact: true, component: EditContact },
+    { path: 'apps/contacts/import', exact: true, component: ImportContacts },
     { path: 'apps/file-manager/list-view', exact: true, component: ListView },
     { path: 'apps/file-manager/grid-view', exact: true, component: GridView },
     { path: 'apps/gallery', exact: true, component: Gallery },

@@ -4,7 +4,7 @@ import { Nav } from 'react-bootstrap';
 import SimpleBar from 'simplebar-react';
 import { connect } from 'react-redux';
 import { toggleCollapsedNav } from '../../redux/action/Theme';
-import { NavLink, useRouteMatch } from 'react-router-dom';
+import { NavLink, useLocation, useRouteMatch } from 'react-router-dom';
 import SidebarHeader from './SidebarHeader';
 import { SidebarMenu } from './SidebarMenu';
 import classNames from 'classnames';
@@ -16,7 +16,25 @@ const Sidebar = ({ navCollapsed, toggleCollapsedNav, currentUser, permissions, u
     const [activeMenu, setActiveMenu] = useState();
     const [activeSubMenu, setActiveSubMenu] = useState();
 
+    const location = useLocation();
     const windowWidth = useWindowWidth();
+
+    // Auto-expand the menu whose child path matches the current route
+    React.useEffect(() => {
+        const pathname = location.pathname;
+        SidebarMenu.forEach(group => {
+            group.contents.forEach(menu => {
+                if (!menu.childrens) return;
+                const hasActiveChild = menu.childrens.some(child => {
+                    if (child.childrens) {
+                        return child.childrens.some(cc => pathname.startsWith('/' + cc.path) || pathname === cc.path);
+                    }
+                    return pathname.startsWith('/' + child.path) || pathname === child.path || child.path === pathname;
+                });
+                if (hasActiveChild) setActiveMenu(menu.name);
+            });
+        });
+    }, [location.pathname]);
 
     // ── Compute effective permissions for the signed-in user ──────────────────
     // Admin always sees everything; per-user overrides (from Supabase via Redux)
@@ -62,7 +80,16 @@ const Sidebar = ({ navCollapsed, toggleCollapsedNav, currentUser, permissions, u
                                                     menus.childrens
                                                         ?
                                                         <>
-                                                            <Nav.Link data-bs-toggle="collapse" data-bs-target={`#${menus.id}`} aria-expanded={activeMenu === menus.name ? "true" : "false"} onClick={() => setActiveMenu(menus.name)}>
+                                                            <Nav.Link
+                                                                as={menus.path ? NavLink : undefined}
+                                                                to={menus.path || undefined}
+                                                                exact={menus.path ? true : undefined}
+                                                                onClick={(e) => {
+                                                                    if (!menus.path) e.preventDefault();
+                                                                    setActiveMenu(prev => prev === menus.name ? null : menus.name);
+                                                                    if (windowWidth <= 1199) toggleCollapsedNav(false);
+                                                                }}
+                                                            >
                                                                 <span className={classNames("nav-icon-wrap", { "position-relative": menus.iconBadge })}>
                                                                     {menus.iconBadge && menus.iconBadge}
                                                                     <span className="svg-icon">
@@ -76,7 +103,7 @@ const Sidebar = ({ navCollapsed, toggleCollapsedNav, currentUser, permissions, u
                                                                 {menus.badge && menus.badge}
                                                             </Nav.Link>
 
-                                                            <ul id={menus.id} className={classNames("nav flex-column nav-children", { "collapse": activeMenu !== menus.name })}>
+                                                            <ul id={menus.id} className="nav flex-column nav-children" style={{ display: activeMenu === menus.name ? 'block' : 'none' }}>
                                                                 <li className="nav-item">
                                                                     <ul className="nav flex-column">
                                                                         {menus.childrens.map((subMenu, indx) => (
@@ -94,7 +121,7 @@ const Sidebar = ({ navCollapsed, toggleCollapsedNav, currentUser, permissions, u
                                                                                             <li className="nav-item">
                                                                                                 <ul className="nav flex-column">
                                                                                                     <li className="nav-item">
-                                                                                                        <Nav.Link as={NavLink} to={childrenPath.path} onClick={handleClick}>
+                                                                                                        <Nav.Link as={NavLink} to={childrenPath.path} onClick={() => handleClick(menus.name)}>
                                                                                                             <span className="nav-link-text">
                                                                                                                 {childrenPath.name}
                                                                                                             </span>
@@ -107,7 +134,7 @@ const Sidebar = ({ navCollapsed, toggleCollapsedNav, currentUser, permissions, u
                                                                                 </li>
                                                                                 :
                                                                                 <li className="nav-item" key={indx}>
-                                                                                    <Nav.Link as={NavLink} to={subMenu.path} onClick={handleClick}>
+                                                                                    <Nav.Link as={NavLink} to={subMenu.path} onClick={() => handleClick(menus.name)}>
                                                                                         <span className="nav-link-text">
                                                                                             {subMenu.name}
                                                                                         </span>

@@ -18,10 +18,18 @@ export const SidebarMenu = [
         group: 'Sales',
         contents: [
             {
+                id: 'dash_contacts',
                 name: 'Contacts',
                 icon: <Icons.Notebook />,
                 path: '/apps/contacts/contact-list',
                 grp_name: 'sales',
+                childrens: [
+                    {
+                        name: 'Import Bulk Contacts',
+                        path: '/apps/contacts/import',
+                        grp_name: 'sales',
+                    },
+                ],
             },
             {
                 name: 'Companies',
@@ -188,45 +196,6 @@ export const SidebarMenu = [
         ]
     },
 
-       // ── Finance ──────────────────────────────────────────────────────────────
-    {
-        group: 'Finance',
-        contents: [
-            {
-                name: 'Invoice List',
-                icon: <Icons.FileDigit />,
-                path: '/apps/accounts/invoice-list',
-                grp_name: 'accounts',
-            },
-            {
-                name: 'Invoice Templates',
-                icon: <Icons.LayoutGrid />,
-                path: '/apps/accounts/invoice-templates',
-                grp_name: 'accounts',
-            },
-            {
-                name: 'Create Invoice',
-                icon: <Icons.FilePlus />,
-                path: '/apps/accounts/create-invoice',
-                grp_name: 'accounts',
-            },
-            {
-                name: 'Invoice Preview',
-                icon: <Icons.Eye />,
-                path: '/apps/accounts/invoice-preview',
-                grp_name: 'accounts',
-            },
-            {
-                name: 'Report',
-                icon: <Icons.ChartPie />,
-                path: '/apps/finance/report',
-                grp_name: 'accounts',
-            },
-        ]
-    },
-
-   
-
     // ── Events & Special Projects ─────────────────────────────────────────────
     {
         group: 'Events & Special Projects',
@@ -280,6 +249,46 @@ export const SidebarMenu = [
             },
         ],
     },
+       // ── Finance ──────────────────────────────────────────────────────────────
+    {
+        group: 'Finance',
+        contents: [
+            {
+                name: 'Invoice List',
+                icon: <Icons.FileDigit />,
+                path: '/apps/accounts/invoice-list',
+                grp_name: 'accounts',
+            },
+            {
+                name: 'Invoice Templates',
+                icon: <Icons.LayoutGrid />,
+                path: '/apps/accounts/invoice-templates',
+                grp_name: 'accounts',
+            },
+            {
+                name: 'Create Invoice',
+                icon: <Icons.FilePlus />,
+                path: '/apps/accounts/create-invoice',
+                grp_name: 'accounts',
+            },
+            {
+                name: 'Invoice Preview',
+                icon: <Icons.Eye />,
+                path: '/apps/accounts/invoice-preview',
+                grp_name: 'accounts',
+            },
+            {
+                name: 'Report',
+                icon: <Icons.ChartPie />,
+                path: '/apps/finance/report',
+                grp_name: 'accounts',
+            },
+        ]
+    },
+
+   
+
+
 
     // ── Account ───────────────────────────────────────────────────────────────
     {
