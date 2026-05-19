@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Form, Table } from 'react-bootstrap';
 import SimpleBar from 'simplebar-react';
-import { ChevronDown, ChevronUp, RefreshCw } from 'react-feather';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, RefreshCw } from 'react-feather';
 import { getContactName } from '../../../utils/contactWorkspace';
+
+const PAGE_SIZE = 500;
 
 /* ── Column definitions (matching ACT! layout) ───────────────────────────── */
 const COLUMNS = [
@@ -28,10 +30,11 @@ const SortIcon = ({ colKey, sortKey, sortDir }) => {
    ContactListTable
 ══════════════════════════════════════════════════════════════════════════ */
 const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) => {
-    const [sortKey, setSortKey] = useState('company');
-    const [sortDir, setSortDir] = useState('asc');
-    const [search,  setSearch]  = useState('');
-    const [checked, setChecked] = useState(new Set());
+    const [sortKey,     setSortKey]     = useState('company');
+    const [sortDir,     setSortDir]     = useState('asc');
+    const [search,      setSearch]      = useState('');
+    const [checked,     setChecked]     = useState(new Set());
+    const [currentPage, setCurrentPage] = useState(1);
 
     /* ── Enrich contacts with computed name ── */
     const enriched = useMemo(
@@ -62,10 +65,20 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) =
         [filtered, sortKey, sortDir]
     );
 
+    /* ── Pagination ── */
+    const totalPages   = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+    const safePage     = Math.min(currentPage, totalPages);
+    const pageStart    = (safePage - 1) * PAGE_SIZE;
+    const pageEnd      = Math.min(pageStart + PAGE_SIZE, sorted.length);
+    const pagedContacts = sorted.slice(pageStart, pageEnd);
+
     const handleSort = (key) => {
         if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
         else { setSortKey(key); setSortDir('asc'); }
+        setCurrentPage(1);
     };
+
+    const handleSearch = (val) => { setSearch(val); setCurrentPage(1); };
 
     /* ── Checkbox helpers ── */
     /**
@@ -87,11 +100,11 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) =
     };
 
     const toggleAll = () => {
-        if (checked.size === sorted.length) setChecked(new Set());
-        else setChecked(new Set(sorted.map(c => c.id || c._id)));
+        if (checked.size === pagedContacts.length) setChecked(new Set());
+        else setChecked(new Set(pagedContacts.map(c => c.id || c._id)));
     };
 
-    const allChecked = sorted.length > 0 && checked.size === sorted.length;
+    const allChecked = pagedContacts.length > 0 && pagedContacts.every(c => checked.has(c.id || c._id));
 
     /* ── Cell renderer ── */
     const cell = (value, isEmail = false, contact = null) => {
@@ -127,14 +140,14 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) =
                     type="search"
                     placeholder="Search contacts…"
                     value={search}
-                    onChange={e => setSearch(e.target.value)}
+                    onChange={e => handleSearch(e.target.value)}
                     style={{ maxWidth: 280, fontSize: 13 }}
                 />
                 <span className="text-muted ms-auto" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                    {filtered.length} of {contacts.length} contact{contacts.length !== 1 ? 's' : ''}
+                    {search ? `${filtered.length} matched · ` : ''}{contacts.length} contact{contacts.length !== 1 ? 's' : ''}
                 </span>
                 {checked.size > 0 && (() => {
-                    const checkedContact = sorted.find(c => checked.has(c.id || c._id));
+                    const checkedContact = pagedContacts.find(c => checked.has(c.id || c._id));
                     return (
                         <Badge bg="primary" pill>
                             {checkedContact ? `${checkedContact._name} selected` : `${checked.size} selected`}
@@ -182,13 +195,13 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) =
                         </tr>
                     </thead>
                     <tbody>
-                        {sorted.length === 0 ? (
+                        {pagedContacts.length === 0 ? (
                             <tr>
                                 <td colSpan={COLUMNS.length + 1} className="text-center text-muted py-6">
                                     {search ? 'No contacts match your search.' : 'No contacts yet.'}
                                 </td>
                             </tr>
-                        ) : sorted.map(contact => {
+                        ) : pagedContacts.map(contact => {
                             const id  = contact.id || contact._id;
                             const sel = String(id) === String(selectedId);
                             return (
@@ -239,6 +252,45 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) =
                     </tbody>
                 </Table>
             </SimpleBar>
+
+            {/* ── Pagination footer ── */}
+            {sorted.length > 0 && (
+                <div className="d-flex align-items-center justify-content-between px-3 py-2 border-top bg-body-secondary flex-shrink-0" style={{ fontSize: 12 }}>
+                    <span className="text-muted">
+                        Showing {pageStart + 1}–{pageEnd} of {sorted.length}{search ? ` (filtered from ${contacts.length})` : ''}
+                    </span>
+                    <div className="d-flex align-items-center gap-1">
+                        <button
+                            className="btn btn-sm btn-icon btn-flush-secondary rounded"
+                            disabled={safePage === 1}
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            title="Previous page"
+                            style={{ padding: '3px 6px' }}
+                        >
+                            <ChevronLeft size={13} />
+                        </button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(pg => (
+                            <button
+                                key={pg}
+                                className={`btn btn-sm rounded ${pg === safePage ? 'btn-primary' : 'btn-flush-secondary'}`}
+                                onClick={() => setCurrentPage(pg)}
+                                style={{ minWidth: 28, padding: '2px 6px', fontSize: 12 }}
+                            >
+                                {pg}
+                            </button>
+                        ))}
+                        <button
+                            className="btn btn-sm btn-icon btn-flush-secondary rounded"
+                            disabled={safePage === totalPages}
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            title="Next page"
+                            style={{ padding: '3px 6px' }}
+                        >
+                            <ChevronRight size={13} />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
