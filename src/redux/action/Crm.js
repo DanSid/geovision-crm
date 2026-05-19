@@ -116,6 +116,50 @@ export const addContact = (data) => async (dispatch, getState) => {
 export const updateContact = contactCrud.update;
 
 /**
+ * addContactsBatch — bulk import via single Supabase request per 100-record chunk.
+ * Eliminates the N-request-per-contact pattern that hits rate limits on large imports.
+ * Returns { saved, failed } counts.
+ */
+const BATCH_CHUNK = 100;
+export const addContactsBatch = (contacts) => async (dispatch, getState) => {
+    const user = getState().auth?.currentUser;
+    const enriched = contacts.map(c => ({
+        ...c,
+        createdBy: c.createdBy || user?.name || 'Unknown',
+        createdAt: c.createdAt || new Date().toISOString(),
+    }));
+    let saved = 0, failed = 0;
+    for (let i = 0; i < enriched.length; i += BATCH_CHUNK) {
+        const chunk = enriched.slice(i, i + BATCH_CHUNK);
+        try {
+            const { data: rows } = await contactsApi.createBatch(chunk);
+            rows.forEach(row => dispatch({ type: ADD_CONTACT, payload: row }));
+            saved += rows.length;
+        } catch (err) {
+            console.error('[CRM] Batch contact insert failed:', err?.message || err);
+            failed += chunk.length;
+        }
+    }
+    return { saved, failed };
+};
+
+export const addCustomersBatch = (customers) => async (dispatch) => {
+    let saved = 0, failed = 0;
+    for (let i = 0; i < customers.length; i += BATCH_CHUNK) {
+        const chunk = customers.slice(i, i + BATCH_CHUNK);
+        try {
+            const { data: rows } = await customersApi.createBatch(chunk);
+            rows.forEach(row => dispatch({ type: ADD_CUSTOMER, payload: row }));
+            saved += rows.length;
+        } catch (err) {
+            console.error('[CRM] Batch customer insert failed:', err?.message || err);
+            failed += chunk.length;
+        }
+    }
+    return { saved, failed };
+};
+
+/**
  * deleteContact — cascade thunk.
  * Removes the contact row AND all related rows (activities, notes, history,
  * documents, secondary contacts) from Supabase, then purges them from Redux.

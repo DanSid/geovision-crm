@@ -83,6 +83,22 @@ function buildCrud(table) {
             if (error) throw new Error(`[${table}] remove: ${error.message}`);
             return { data: null };
         },
+
+        /* BATCH INSERT — sends all records in one request instead of N calls */
+        createBatch: async (items) => {
+            if (!items?.length) return { data: [] };
+            const rows = items.map(item => {
+                // eslint-disable-next-line no-unused-vars
+                const { id, _id, createdAt, updatedAt, ...rest } = item || {};
+                return { data: rest };
+            });
+            const { data, error } = await supabase
+                .from(table)
+                .insert(rows)
+                .select();
+            if (error) throw new Error(`[${table}] createBatch: ${error.message}`);
+            return { data: (data || []).map(normalize) };
+        },
     };
 }
 

@@ -5,7 +5,7 @@ import { useDropzone } from 'react-dropzone';
 import * as XLSX from 'xlsx';
 import { Download, Upload, CheckCircle, XCircle, AlertTriangle } from 'react-feather';
 import { FileSpreadsheet } from 'tabler-icons-react';
-import { addContact, addCustomer } from '../../../redux/action/Crm';
+import { addContactsBatch, addCustomersBatch } from '../../../redux/action/Crm';
 import { showToast } from '../../../components/GlobalToast';
 
 /* ── Column map ─────────────────────────────────────────────────────────── */
@@ -142,10 +142,11 @@ const detectDuplicates = (mappedRows, existingContacts) => {
 };
 
 /* ══════════════════════════════════════════════════════════════════════════ */
-const ImportContacts = ({ contacts: existingContacts = [], addContact, addCustomer }) => {
+const ImportContacts = ({ contacts: existingContacts = [], addContactsBatch, addCustomersBatch }) => {
     const [rows,       setRows]       = useState([]);
     const [fileName,   setFileName]   = useState('');
     const [importing,  setImporting]  = useState(false);
+    const [progress,   setProgress]   = useState(0);
     const [result,     setResult]     = useState(null); // { success, skipped, failed }
     const [parseError, setParseError] = useState('');
 
@@ -176,39 +177,51 @@ const ImportContacts = ({ contacts: existingContacts = [], addContact, addCustom
         multiple: false,
     });
 
-    /* ── Import ── */
+    /* ── Import — batch mode ── */
     const handleImport = async () => {
         const toImport = rows.filter(r => r.errors.length === 0 && !r.duplicate);
         if (!toImport.length) return;
 
-        setImporting(true);
-        let success = 0, failed = 0;
         const skipped = rows.filter(r => r.duplicate).length;
+        setImporting(true);
+        setProgress(10);
 
-        for (const { contact } of toImport) {
-            try {
-                const fullName = `${contact.firstName} ${contact.lastName}`.trim();
-                await addContact({ ...contact, createdAt: new Date().toISOString() });
-                addCustomer({
-                    name: fullName, email: contact.email,
-                    phone: contact.phone || '', company: contact.company || '',
-                    status: 'Active', createdAt: new Date().toLocaleDateString(),
-                });
-                success++;
-            } catch { failed++; }
-        }
+        // Build payloads
+        const contactPayloads = toImport.map(({ contact }) => ({
+            ...contact,
+            createdAt: new Date().toISOString(),
+        }));
+        const customerPayloads = toImport.map(({ contact }) => ({
+            name:      `${contact.firstName} ${contact.lastName}`.trim(),
+            email:     contact.email,
+            phone:     contact.phone || '',
+            company:   contact.company || '',
+            status:    'Active',
+            createdAt: new Date().toLocaleDateString(),
+        }));
+
+        setProgress(20);
+
+        // Batch insert contacts (100 per Supabase request)
+        const { saved, failed } = await addContactsBatch(contactPayloads);
+        setProgress(70);
+
+        // Batch insert matching customer records
+        if (saved > 0) await addCustomersBatch(customerPayloads.slice(0, saved));
+        setProgress(100);
 
         setImporting(false);
-        setResult({ success, skipped, failed });
+        setProgress(0);
+        setResult({ success: saved, skipped, failed });
         setRows([]);
         setFileName('');
 
-        if (success > 0)
-            showToast(`${success} contact${success !== 1 ? 's' : ''} imported successfully!`, 'success');
+        if (saved > 0)
+            showToast(`${saved} contact${saved !== 1 ? 's' : ''} saved to database successfully!`, 'success');
         if (skipped > 0)
             showToast(`${skipped} duplicate${skipped !== 1 ? 's' : ''} skipped.`, 'warning', 'Duplicates Skipped');
         if (failed > 0)
-            showToast(`${failed} contact${failed !== 1 ? 's' : ''} failed to save.`, 'danger');
+            showToast(`${failed} record${failed !== 1 ? 's' : ''} failed to save — check database connection.`, 'danger', 'Import Error', 10000);
     };
 
     /* ── Derived counts ── */
@@ -437,7 +450,10 @@ const ImportContacts = ({ contacts: existingContacts = [], addContact, addCustom
                                     </div>
 
                                     {importing && (
-                                        <ProgressBar animated now={100} className="mt-2" style={{ height: 4 }} />
+                                        <div className="mt-2">
+                                            <ProgressBar animated now={progress} className="mb-1" style={{ height: 6 }} />
+                                            <span className="text-muted fs-7">Saving to database… {progress}%</span>
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -508,4 +524,4 @@ const ImportContacts = ({ contacts: existingContacts = [], addContact, addCustom
 };
 
 const mapStateToProps = ({ contacts }) => ({ contacts: contacts || [] });
-export default connect(mapStateToProps, { addContact, addCustomer })(ImportContacts);
+export default connect(mapStateToProps, { addContactsBatch, addCustomersBatch })(ImportContacts);
