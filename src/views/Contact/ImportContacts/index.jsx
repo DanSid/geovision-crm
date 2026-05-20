@@ -147,7 +147,7 @@ const ImportContacts = ({ contacts: existingContacts = [], addContactsBatch, add
     const [fileName,   setFileName]   = useState('');
     const [importing,  setImporting]  = useState(false);
     const [progress,   setProgress]   = useState(0);
-    const [result,     setResult]     = useState(null); // { success, skipped, failed }
+    const [result,     setResult]     = useState(null); // { success, skipped, failed, errors }
     const [parseError, setParseError] = useState('');
 
     /* ── Dropzone ── */
@@ -203,7 +203,7 @@ const ImportContacts = ({ contacts: existingContacts = [], addContactsBatch, add
         setProgress(20);
 
         // Batch insert contacts (100 per Supabase request)
-        const { saved, failed } = await addContactsBatch(contactPayloads);
+        const { saved, failed, errors: batchErrors } = await addContactsBatch(contactPayloads);
         setProgress(70);
 
         // Batch insert matching customer records
@@ -212,7 +212,7 @@ const ImportContacts = ({ contacts: existingContacts = [], addContactsBatch, add
 
         setImporting(false);
         setProgress(0);
-        setResult({ success: saved, skipped, failed });
+        setResult({ success: saved, skipped, failed, errors: batchErrors || [] });
         setRows([]);
         setFileName('');
 
@@ -221,7 +221,7 @@ const ImportContacts = ({ contacts: existingContacts = [], addContactsBatch, add
         if (skipped > 0)
             showToast(`${skipped} duplicate${skipped !== 1 ? 's' : ''} skipped.`, 'warning', 'Duplicates Skipped');
         if (failed > 0)
-            showToast(`${failed} record${failed !== 1 ? 's' : ''} failed to save — check database connection.`, 'danger', 'Import Error', 10000);
+            showToast(`${failed} record${failed !== 1 ? 's' : ''} failed to save — database rejected the insert. See error details below.`, 'danger', 'Import Error', 15000);
     };
 
     /* ── Derived counts ── */
@@ -463,17 +463,25 @@ const ImportContacts = ({ contacts: existingContacts = [], addContactsBatch, add
 
                 {/* Result */}
                 {result && (
-                    <Alert variant={result.failed === 0 ? 'success' : 'warning'}
+                    <Alert variant={result.failed === 0 ? 'success' : result.success > 0 ? 'warning' : 'danger'}
                         className="d-flex align-items-start gap-2 mb-4">
                         <CheckCircle size={18} className="flex-shrink-0 mt-1" />
-                        <div>
-                            <strong>Import complete.</strong>
+                        <div className="w-100">
+                            <strong>Import {result.failed === 0 ? 'complete' : 'finished with errors'}.</strong>
                             <ul className="mb-1 mt-1 ps-3 fs-7">
-                                {result.success > 0  && <li className="text-success">{result.success} contact{result.success !== 1 ? 's' : ''} imported successfully.</li>}
+                                {result.success > 0  && <li className="text-success">{result.success} contact{result.success !== 1 ? 's' : ''} saved to database successfully — will persist after refresh.</li>}
                                 {result.skipped > 0  && <li className="text-warning">{result.skipped} duplicate{result.skipped !== 1 ? 's' : ''} skipped (already exist in database).</li>}
-                                {result.failed  > 0  && <li className="text-danger">{result.failed} record{result.failed !== 1 ? 's' : ''} failed to save.</li>}
+                                {result.failed  > 0  && <li className="text-danger"><strong>{result.failed} record{result.failed !== 1 ? 's' : ''} FAILED to save to Supabase</strong> — these will NOT appear after refresh.</li>}
                             </ul>
-                            <div className="fs-7">
+                            {result.errors?.length > 0 && (
+                                <div className="mt-2 p-2 rounded fs-7" style={{ background: 'rgba(220,53,69,0.1)', border: '1px solid rgba(220,53,69,0.3)' }}>
+                                    <strong className="text-danger">Database error details:</strong>
+                                    <ul className="mb-0 mt-1 ps-3">
+                                        {result.errors.map((e, i) => <li key={i} className="text-danger">{e}</li>)}
+                                    </ul>
+                                </div>
+                            )}
+                            <div className="fs-7 mt-2">
                                 Go to{' '}
                                 <a href="/apps/contacts/contact-list" className="alert-link">Contacts</a>{' '}
                                 to view the imported records.

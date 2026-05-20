@@ -129,18 +129,29 @@ export const addContactsBatch = (contacts) => async (dispatch, getState) => {
         createdAt: c.createdAt || new Date().toISOString(),
     }));
     let saved = 0, failed = 0;
+    const errors = [];
     for (let i = 0; i < enriched.length; i += BATCH_CHUNK) {
         const chunk = enriched.slice(i, i + BATCH_CHUNK);
         try {
             const { data: rows } = await contactsApi.createBatch(chunk);
-            rows.forEach(row => dispatch({ type: ADD_CONTACT, payload: row }));
-            saved += rows.length;
+            if (!rows || rows.length === 0) {
+                // Insert ran but Supabase returned nothing — likely an RLS policy blocking the write
+                const msg = `Chunk ${Math.floor(i / BATCH_CHUNK) + 1}: Supabase accepted the request but returned 0 rows. Check Row Level Security policies on the contacts table.`;
+                console.error('[CRM]', msg);
+                errors.push(msg);
+                failed += chunk.length;
+            } else {
+                rows.forEach(row => dispatch({ type: ADD_CONTACT, payload: row }));
+                saved += rows.length;
+            }
         } catch (err) {
-            console.error('[CRM] Batch contact insert failed:', err?.message || err);
+            const msg = err?.message || String(err);
+            console.error('[CRM] Batch contact insert failed:', msg);
+            errors.push(`Chunk ${Math.floor(i / BATCH_CHUNK) + 1}: ${msg}`);
             failed += chunk.length;
         }
     }
-    return { saved, failed };
+    return { saved, failed, errors };
 };
 
 export const addCustomersBatch = (customers) => async (dispatch) => {

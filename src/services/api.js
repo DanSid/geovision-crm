@@ -26,12 +26,13 @@ const normalize = (row) => {
 /* ── Generic CRUD factory (same external interface as old axios buildCrud) ── */
 function buildCrud(table) {
     return {
-        /* List all rows, newest first */
+        /* List ALL rows, newest first — explicit limit overrides Supabase's default 1000-row cap */
         getAll: async () => {
             const { data, error } = await supabase
                 .from(table)
                 .select('*')
-                .order('created_at', { ascending: false });
+                .order('created_at', { ascending: false })
+                .limit(10000);
             if (error) throw new Error(`[${table}] getAll: ${error.message}`);
             return { data: (data || []).map(normalize) };
         },
