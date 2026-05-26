@@ -1,14 +1,132 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button, Dropdown, Form, Modal } from 'react-bootstrap';
 import { connect } from 'react-redux';
 import {
     ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight,
-    List, Layout, Mail, Clock, FileText, CheckSquare, Calendar, Phone, Plus, Save,
+    List, Layout, Mail, Clock, FileText, CheckSquare, Calendar, Phone, Plus, Save, Search,
 } from 'react-feather';
 import { useHistory } from 'react-router-dom';
 import { getContactName } from '../../../utils/contactWorkspace';
 import { addNote, addTask, addActivity, addHistoryEntry } from '../../../redux/action/Crm';
 import ActivityDateTimePicker from '../../../components/ActivityDateTimePicker';
+
+/* ── Searchable contact picker ──────────────────────────────────────────── */
+const ContactPicker = ({ contacts = [], value, onChange, placeholder = 'Search contacts…' }) => {
+    const [query,     setQuery]     = useState('');
+    const [open,      setOpen]      = useState(false);
+    const [hovered,   setHovered]   = useState(null);
+    const ref        = useRef(null);
+    const skipSync   = useRef(false);   // guard: don't reset query while user is typing
+
+    /* Sync query when parent explicitly sets a value (e.g. pre-fill on open) */
+    useEffect(() => {
+        if (!skipSync.current) setQuery(value?.name || '');
+    }, [value?.name]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    /* Close dropdown on outside click */
+    useEffect(() => {
+        const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const q        = query.trim().toLowerCase();
+    const filtered = q.length === 0 ? [] : contacts
+        .filter(c => !c.deleted)
+        .filter(c => {
+            const n  = getContactName(c).toLowerCase();
+            const co = (c.company || '').toLowerCase();
+            return n.includes(q) || co.includes(q);
+        })
+        .slice(0, 10);
+
+    const select = (c) => {
+        const n = getContactName(c);
+        skipSync.current = true;
+        setQuery(n);
+        setOpen(false);
+        setHovered(null);
+        onChange({ id: c.id || c._id, name: n, company: c.company || '' });
+        // allow sync again after 300ms
+        setTimeout(() => { skipSync.current = false; }, 300);
+    };
+
+    const clear = () => {
+        skipSync.current = true;
+        setQuery('');
+        setOpen(false);
+        onChange(null);
+        setTimeout(() => { skipSync.current = false; }, 300);
+    };
+
+    return (
+        <div ref={ref} style={{ position: 'relative' }}>
+            <div className="input-group input-group-sm">
+                <span className="input-group-text bg-body border-end-0">
+                    <Search size={12} className="text-muted" />
+                </span>
+                <Form.Control
+                    size="sm"
+                    placeholder={placeholder}
+                    value={query}
+                    style={{ borderLeft: 'none' }}
+                    onChange={e => {
+                        skipSync.current = true;
+                        setQuery(e.target.value);
+                        setOpen(true);
+                        if (!e.target.value) onChange(null);
+                        setTimeout(() => { skipSync.current = false; }, 300);
+                    }}
+                    onFocus={() => { if (query.trim()) setOpen(true); }}
+                    autoComplete="off"
+                />
+                {query && (
+                    <button type="button" className="btn btn-sm btn-outline-secondary"
+                        tabIndex={-1} onClick={clear}
+                        style={{ padding: '0 10px', borderLeft: 'none', fontSize: 14, lineHeight: 1 }}>
+                        ×
+                    </button>
+                )}
+            </div>
+            {open && filtered.length > 0 && (
+                <div
+                    className="border rounded shadow bg-body"
+                    style={{ position: 'absolute', zIndex: 2000, width: '100%', maxHeight: 240,
+                             overflowY: 'auto', top: 'calc(100% + 4px)', left: 0 }}
+                >
+                    {filtered.map(c => {
+                        const n  = getContactName(c);
+                        const co = c.company || '';
+                        const id = c.id || c._id;
+                        return (
+                            <div key={id}
+                                onMouseDown={() => select(c)}
+                                onMouseEnter={() => setHovered(id)}
+                                onMouseLeave={() => setHovered(null)}
+                                style={{
+                                    cursor: 'pointer',
+                                    padding: '8px 14px',
+                                    borderBottom: '1px solid var(--bs-border-color)',
+                                    background: hovered === id ? 'var(--bs-primary-bg-subtle, rgba(79,70,229,0.08))' : 'transparent',
+                                    transition: 'background 0.1s',
+                                }}
+                            >
+                                <div style={{ fontWeight: 600, fontSize: 13 }}>{n}</div>
+                                {co && <div style={{ fontSize: 11, color: 'var(--bs-secondary-color, #6b7280)' }}>{co}</div>}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+            {open && q.length > 0 && filtered.length === 0 && (
+                <div className="border rounded shadow bg-body px-3 py-2 text-muted"
+                    style={{ position: 'absolute', zIndex: 2000, width: '100%', top: 'calc(100% + 4px)', fontSize: 13 }}>
+                    No contacts found for &quot;{query}&quot;
+                </div>
+            )}
+        </div>
+    );
+};
 
 /* ── Tiny re-usable modal shell ────────────────────────────────────────── */
 const QModal = ({ show, onHide, title, onSave, saveLabel = 'Save', disabled, children }) => (
@@ -44,6 +162,8 @@ const ContactActionBar = ({
     addTask,
     addActivity,
     addHistoryEntry,
+    /* Redux state */
+    contacts,
 }) => {
     const history = useHistory();
     const [modal, setModal] = useState(null); // 'note' | 'task' | 'meeting' | 'call' | 'history'
@@ -53,9 +173,22 @@ const ContactActionBar = ({
     const cId     = contact ? (contact.id || contact._id) : null;
     const hasContact = !!contact;
 
-    const open  = (key) => { setFd({}); setModal(key); };
-    const close = ()    => { setModal(null); setFd({}); };
-    const set   = (k, v) => setFd(prev => ({ ...prev, [k]: v }));
+    const open  = (key, extraFd = {}) => { setFd(extraFd); setModal(key); };
+    const close = ()              => { setModal(null); setFd({}); };
+    const set   = (k, v)          => setFd(prev => ({ ...prev, [k]: v }));
+
+    /* Open the call modal — pre-populate spokeTo only when a specific
+       contact was explicitly checked (passed via the action bar buttons).
+       From "Create New" dropdown with no explicit selection: start empty. */
+    const openCall = () => {
+        if (contact) {
+            open('call', {
+                spokeTo: { id: cId, name, company: contact.company || '' },
+            });
+        } else {
+            open('call');
+        }
+    };
 
     /* ── Save handlers ── */
     const saveNote = () => {
@@ -77,18 +210,25 @@ const ContactActionBar = ({
     };
 
     const saveActivity = (type) => {
+        const isCall = type === 'Call';
         addActivity({
-            entityType:   'contact',
-            entityId:     cId,
+            entityType:       'contact',
+            entityId:         cId,
             type,
-            title:        fd.title || `${type} with ${name}`,
-            description:  fd.description || '',
-            date:         fd.date || new Date().toISOString().split('T')[0],
-            time:         fd.time || '',
-            priority:     fd.priority || 'Medium',
-            duration:     fd.duration || '',
-            contactName:  name,
-            completed:    false,
+            title:            fd.title || `${type} with ${name}`,
+            description:      fd.description || '',
+            date:             fd.date || new Date().toISOString().split('T')[0],
+            time:             fd.time || '',
+            priority:         fd.priority || 'Medium',
+            duration:         fd.duration || '',
+            contactName:      name,
+            completed:        false,
+            /* Call-specific fields */
+            ...(isCall && {
+                spokeTo:          fd.spokeTo?.name  || name,
+                spokeToContactId: fd.spokeTo?.id    || cId,
+                spokeToCompany:   fd.spokeTo?.company ?? (contact?.company || ''),
+            }),
         });
         close();
     };
@@ -133,7 +273,7 @@ const ContactActionBar = ({
         },
         {
             label: 'Call', icon: <Phone size={13} />, variant: 'outline-secondary',
-            onClick: () => open('call'),
+            onClick: () => openCall(),
             title: 'Log a call with this contact',
         },
     ];
@@ -244,7 +384,7 @@ const ContactActionBar = ({
                                 <Dropdown.Item onClick={() => open('meeting')} disabled={!hasContact}>
                                     <i className="ri-calendar-event-line me-2" />New Meeting
                                 </Dropdown.Item>
-                                <Dropdown.Item onClick={() => open('call')} disabled={!hasContact}>
+                                <Dropdown.Item onClick={openCall} disabled={!hasContact}>
                                     <i className="ri-phone-line me-2" />Log Call
                                 </Dropdown.Item>
                                 <Dropdown.Item onClick={() => open('history')} disabled={!hasContact}>
@@ -421,15 +561,46 @@ const ContactActionBar = ({
                 onSave={() => saveActivity('Call')} saveLabel="Log Call"
                 disabled={!fd.title?.trim()}
             >
+                {/* Who you spoke to */}
+                <Form.Group className="mb-3">
+                    <Form.Label className="fs-7 fw-semibold">Who you spoke to</Form.Label>
+                    <ContactPicker
+                        contacts={contacts || []}
+                        value={fd.spokeTo || null}
+                        onChange={val => set('spokeTo', val)}
+                        placeholder="Search by name or company…"
+                    />
+                    <Form.Text className="text-muted" style={{ fontSize: 11 }}>
+                        Defaults to the selected contact — change if you spoke to someone else.
+                    </Form.Text>
+                </Form.Group>
+
+                {/* Company — auto-populated from selected contact */}
+                <Form.Group className="mb-3">
+                    <Form.Label className="fs-7 fw-semibold">Company</Form.Label>
+                    <Form.Control
+                        size="sm"
+                        placeholder="Auto-filled when a contact is selected above"
+                        value={fd.spokeTo?.company || ''}
+                        onChange={e =>
+                            set('spokeTo', { ...(fd.spokeTo || {}), company: e.target.value })
+                        }
+                    />
+                </Form.Group>
+
+                {/* Call Subject */}
                 <Form.Group className="mb-3">
                     <Form.Label className="fs-7 fw-semibold">Call Subject <span className="text-danger">*</span></Form.Label>
                     <Form.Control
+                        size="sm"
                         placeholder="e.g. Follow-up call re: proposal"
                         value={fd.title || ''}
                         onChange={e => set('title', e.target.value)}
                         autoFocus
                     />
                 </Form.Group>
+
+                {/* Date & Time */}
                 <Form.Group className="mb-3">
                     <Form.Label className="fs-7 fw-semibold">Date &amp; Time</Form.Label>
                     <ActivityDateTimePicker
@@ -438,20 +609,27 @@ const ContactActionBar = ({
                         onChange={({ date, time }) => { set('date', date); set('time', time); }}
                     />
                 </Form.Group>
+
+                {/* Duration (free text) + Priority */}
                 <div className="row g-2 mb-3">
                     <div className="col-6">
                         <Form.Label className="fs-7 fw-semibold">Duration</Form.Label>
-                        <Form.Select value={fd.duration || '10 Minutes'} onChange={e => set('duration', e.target.value)}>
-                            {['5 Minutes','10 Minutes','15 Minutes','30 Minutes','1 Hour','2 Hours'].map(d => <option key={d}>{d}</option>)}
-                        </Form.Select>
+                        <Form.Control
+                            size="sm"
+                            placeholder="e.g. 25 mins, 1h 10m…"
+                            value={fd.duration || ''}
+                            onChange={e => set('duration', e.target.value)}
+                        />
                     </div>
                     <div className="col-6">
                         <Form.Label className="fs-7 fw-semibold">Priority</Form.Label>
-                        <Form.Select value={fd.priority || 'Low'} onChange={e => set('priority', e.target.value)}>
+                        <Form.Select size="sm" value={fd.priority || 'Low'} onChange={e => set('priority', e.target.value)}>
                             {['Low','Medium','High','Urgent'].map(p => <option key={p}>{p}</option>)}
                         </Form.Select>
                     </div>
                 </div>
+
+                {/* Call Notes */}
                 <Form.Group>
                     <Form.Label className="fs-7 fw-semibold">Call Notes</Form.Label>
                     <Form.Control
@@ -495,4 +673,5 @@ const ContactActionBar = ({
     );
 };
 
-export default connect(null, { addNote, addTask, addActivity, addHistoryEntry })(ContactActionBar);
+const mapStateToProps = ({ contacts }) => ({ contacts: contacts || [] });
+export default connect(mapStateToProps, { addNote, addTask, addActivity, addHistoryEntry })(ContactActionBar);

@@ -26,15 +26,25 @@ const normalize = (row) => {
 /* ── Generic CRUD factory (same external interface as old axios buildCrud) ── */
 function buildCrud(table) {
     return {
-        /* List ALL rows, newest first — explicit limit overrides Supabase's default 1000-row cap */
+        /* List ALL rows — fetches in pages of 1000 to bypass Supabase's server-side max-rows cap */
         getAll: async () => {
-            const { data, error } = await supabase
-                .from(table)
-                .select('*')
-                .order('created_at', { ascending: false })
-                .limit(10000);
-            if (error) throw new Error(`[${table}] getAll: ${error.message}`);
-            return { data: (data || []).map(normalize) };
+            const PAGE = 1000;
+            let allRows = [];
+            let from = 0;
+            // eslint-disable-next-line no-constant-condition
+            while (true) {
+                const { data, error } = await supabase
+                    .from(table)
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .range(from, from + PAGE - 1);
+                if (error) throw new Error(`[${table}] getAll: ${error.message}`);
+                if (!data || data.length === 0) break;
+                allRows = allRows.concat(data);
+                if (data.length < PAGE) break;   // last page — we're done
+                from += PAGE;
+            }
+            return { data: allRows.map(normalize) };
         },
 
         /* Single row by UUID */
