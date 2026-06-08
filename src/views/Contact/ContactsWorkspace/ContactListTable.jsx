@@ -29,10 +29,9 @@ const SortIcon = ({ colKey, sortKey, sortDir }) => {
 /* ══════════════════════════════════════════════════════════════════════════
    ContactListTable
 ══════════════════════════════════════════════════════════════════════════ */
-const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) => {
+const ContactListTable = ({ contacts = [], totalCount = null, search = '', onSearch = () => {}, selectedId, onSelect, onActivate }) => {
     const [sortKey,     setSortKey]     = useState('company');
     const [sortDir,     setSortDir]     = useState('asc');
-    const [search,      setSearch]      = useState('');
     const [checked,     setChecked]     = useState(new Set());
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -42,27 +41,14 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) =
         [contacts]
     );
 
-    /* ── Filter ── */
-    const filtered = useMemo(() => {
-        const q = search.trim().toLowerCase();
-        if (!q) return enriched;
-        return enriched.filter(c =>
-            c._name.toLowerCase().includes(q) ||
-            (c.company      || '').toLowerCase().includes(q) ||
-            (c.email        || '').toLowerCase().includes(q) ||
-            (c.phone        || '').toLowerCase().includes(q) ||
-            (c.designation  || '').toLowerCase().includes(q)
-        );
-    }, [enriched, search]);
-
-    /* ── Sort ── */
+    /* ── Sort (contacts are pre-filtered by parent via displayContacts) ── */
     const sorted = useMemo(() =>
-        [...filtered].sort((a, b) => {
+        [...enriched].sort((a, b) => {
             const av = (a[sortKey] || '').toString().toLowerCase();
             const bv = (b[sortKey] || '').toString().toLowerCase();
             return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
         }),
-        [filtered, sortKey, sortDir]
+        [enriched, sortKey, sortDir]
     );
 
     /* ── Pagination ── */
@@ -78,7 +64,11 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) =
         setCurrentPage(1);
     };
 
-    const handleSearch = (val) => { setSearch(val); setCurrentPage(1); };
+    const handleSearch = (val) => { onSearch(val); setCurrentPage(1); };
+
+    // Reset to page 1 when parent-controlled search changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    React.useEffect(() => { setCurrentPage(1); }, [search]);
 
     /* ── Checkbox helpers ── */
     /**
@@ -130,7 +120,7 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) =
                 <button
                     className="btn btn-sm btn-icon btn-flush-secondary rounded"
                     title="Refresh"
-                    onClick={() => setSearch('')}
+                    onClick={() => onSearch('')}
                     style={{ padding: '4px 6px' }}
                 >
                     <RefreshCw size={13} />
@@ -144,7 +134,7 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) =
                     style={{ maxWidth: 280, fontSize: 13 }}
                 />
                 <span className="text-muted ms-auto" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
-                    {search ? `${filtered.length} matched · ` : ''}{contacts.length} contact{contacts.length !== 1 ? 's' : ''}
+                    {search ? `${sorted.length} matched · ` : ''}{totalCount ?? contacts.length} contact{(totalCount ?? contacts.length) !== 1 ? 's' : ''}
                 </span>
                 {checked.size > 0 && (() => {
                     const checkedContact = pagedContacts.find(c => checked.has(c.id || c._id));
@@ -257,7 +247,7 @@ const ContactListTable = ({ contacts = [], selectedId, onSelect, onActivate }) =
             {sorted.length > 0 && (
                 <div className="d-flex align-items-center justify-content-between px-3 py-2 border-top bg-body-secondary flex-shrink-0" style={{ fontSize: 12 }}>
                     <span className="text-muted">
-                        Showing {pageStart + 1}–{pageEnd} of {sorted.length}{search ? ` (filtered from ${contacts.length})` : ''}
+                        Showing {pageStart + 1}–{pageEnd} of {sorted.length}
                     </span>
                     <div className="d-flex align-items-center gap-1">
                         <button

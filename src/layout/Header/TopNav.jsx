@@ -29,7 +29,7 @@ const getDueLabel = (dateStr) => {
     return `Due in ${diffDays} days`;
 };
 
-const fmtActivityDate = (dateVal, timeStr) => {
+const fmtActivityDate = (dateVal, timeStr, completed = false) => {
     const dt = getActivityDateTime({ date: dateVal, time: timeStr });
     if (!dt) return dateVal || '';
 
@@ -46,7 +46,8 @@ const fmtActivityDate = (dateVal, timeStr) => {
     if (diffDays === 0) return `Today${timePart}`;
     if (diffDays === -1) return `Yesterday${timePart}`;
     if (diffDays === 1) return `Tomorrow${timePart}`;
-    if (diffDays < 0) return `${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${timePart} (overdue)`;
+    // Never show "(overdue)" for completed activities
+    if (diffDays < 0) return `${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${timePart}${completed ? '' : ' (overdue)'}`;
     return `${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${timePart}`;
 };
 
@@ -156,6 +157,7 @@ const TopNav = ({
             });
     }, [opportunities]);
 
+    /* Pending (scheduled, not yet done) activities due today or overdue */
     const activityNotifications = useMemo(() => {
         return activities
             .filter((activity) => !activity.completed && ACTIVITY_META[activity.type] && isActivityTodayOrOverdue(activity))
@@ -165,6 +167,27 @@ const TopNav = ({
                 return da - db;
             })
             .slice(0, 10);
+    }, [activities]);
+
+    /* Completed calls/activities logged today — shown in green "Done" section */
+    const completedToday = useMemo(() => {
+        const todayStr = toLocalDateKey(new Date());
+        return activities
+            .filter((activity) => {
+                if (!activity.completed) return false;
+                if (!ACTIVITY_META[activity.type]) return false;
+                // Use loggedAt if available, otherwise fall back to activity date
+                const loggedDate = activity.loggedAt
+                    ? toLocalDateKey(new Date(activity.loggedAt))
+                    : toLocalDateKey(getActivityDateTime(activity));
+                return loggedDate === todayStr;
+            })
+            .sort((a, b) => {
+                const da = new Date(a.loggedAt || a.createdAt || 0);
+                const db = new Date(b.loggedAt || b.createdAt || 0);
+                return db - da; // newest first
+            })
+            .slice(0, 5);
     }, [activities]);
 
     const notifCount = dueNotifications.length + oppNotifications.length + activityNotifications.length;
@@ -201,7 +224,7 @@ const TopNav = ({
                     </Button>
 
                     {/* Search */}
-                    <Dropdown as={Form} className="navbar-search" show={showDropdown}>
+                    {/* <Dropdown as={Form} className="navbar-search" show={showDropdown}>
                         <Dropdown.Toggle as="div" className="no-caret bg-transparent">
                             <Button
                                 variant="flush-dark"
@@ -274,8 +297,11 @@ const TopNav = ({
                                 <Link to="#"><u>Search all</u></Link>
                             </div>
                         </Dropdown.Menu>
-                    </Dropdown>
+                    </Dropdown> */}
                 </div>
+
+
+                
                 {/* /Start Nav */}
 
                 {/* End Nav */}
@@ -323,7 +349,7 @@ const TopNav = ({
                                         </Button>
                                     </Dropdown.Header>
                                     <SimpleBar className="dropdown-body p-2" style={{ maxHeight: 360 }}>
-                                        {notifCount === 0 ? (
+                                        {notifCount === 0 && completedToday.length === 0 ? (
                                             <div className="text-center py-4 text-muted fs-7">
                                                 <span className="feather-icon d-block mb-2">
                                                     <CheckSquare size={28} />
@@ -332,6 +358,55 @@ const TopNav = ({
                                             </div>
                                         ) : (
                                             <>
+                                                {/* ── Completed today (green) ── */}
+                                                {completedToday.length > 0 && (
+                                                    <>
+                                                        <div className="px-2 py-1 text-muted fs-8 fw-semibold text-uppercase" style={{ letterSpacing: '0.05em' }}>
+                                                            Completed Today
+                                                        </div>
+                                                        {completedToday.map((activity) => {
+                                                            const id   = activity.id || activity._id;
+                                                            const meta = ACTIVITY_META[activity.type] || ACTIVITY_META.Call;
+                                                            const loggedTime = activity.loggedAt
+                                                                ? new Date(activity.loggedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                                                                : fmtActivityDate(activity.date, activity.time, true);
+                                                            return (
+                                                                <Dropdown.Item key={`done-${id}`} as={Link} to="/apps/contacts/contact-list">
+                                                                    <div className="media">
+                                                                        <div className="media-head">
+                                                                            <div className="avatar avatar-icon avatar-sm avatar-success avatar-rounded">
+                                                                                <span className="initial-wrap">
+                                                                                    <span className="feather-icon">{meta.icon}</span>
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="media-body">
+                                                                            <div className="notifications-text">
+                                                                                <strong>{activity.title || activity.type}</strong>
+                                                                                {activity.spokeTo && (
+                                                                                    <span className="text-muted fw-normal"> · {activity.spokeTo}</span>
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="notifications-info">
+                                                                                <JampackBadge bg="success" soft>
+                                                                                    {activity.type} Completed
+                                                                                </JampackBadge>
+                                                                                <div className="notifications-time">
+                                                                                    Today at {loggedTime}
+                                                                                    {activity.loggedBy && (
+                                                                                        <span className="ms-1 text-muted">· by {activity.loggedBy}</span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </Dropdown.Item>
+                                                            );
+                                                        })}
+                                                    </>
+                                                )}
+
+                                                {/* ── Pending / overdue activities ── */}
                                                 {activityNotifications.length > 0 && (
                                                     <>
                                                         <div className="px-2 py-1 text-muted fs-8 fw-semibold text-uppercase" style={{ letterSpacing: '0.05em' }}>

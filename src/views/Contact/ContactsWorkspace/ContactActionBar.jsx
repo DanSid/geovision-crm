@@ -164,6 +164,7 @@ const ContactActionBar = ({
     addHistoryEntry,
     /* Redux state */
     contacts,
+    currentUser,
 }) => {
     const history = useHistory();
     const [modal, setModal] = useState(null); // 'note' | 'task' | 'meeting' | 'call' | 'history'
@@ -179,14 +180,21 @@ const ContactActionBar = ({
 
     /* Open the call modal — pre-populate spokeTo only when a specific
        contact was explicitly checked (passed via the action bar buttons).
-       From "Create New" dropdown with no explicit selection: start empty. */
+       From "Create New" dropdown with no explicit selection: start empty.
+       Always defaults date/time to NOW since a logged call already happened. */
     const openCall = () => {
+        const now = new Date();
+        const todayDate = now.toISOString().split('T')[0];
+        const nowTime   = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
         if (contact) {
             open('call', {
                 spokeTo: { id: cId, name, company: contact.company || '' },
+                date: todayDate,
+                time: nowTime,
+                callStatus: 'Completed',
             });
         } else {
-            open('call');
+            open('call', { date: todayDate, time: nowTime, callStatus: 'Completed' });
         }
     };
 
@@ -211,23 +219,41 @@ const ContactActionBar = ({
 
     const saveActivity = (type) => {
         const isCall = type === 'Call';
+        const now    = new Date();
+        const todayDate = now.toISOString().split('T')[0];
+        const nowTime   = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+        /* For calls: link the activity to the contact the user SPOKE TO,
+           not necessarily whichever contact is selected in the workspace.
+           This ensures the logged call shows up in the right contact's
+           Activities tab, even when the user changed the "Who you spoke to"
+           picker from the pre-filled default. */
+        const resolvedEntityId   = isCall ? (fd.spokeTo?.id   || cId)  : cId;
+        const resolvedName       = isCall ? (fd.spokeTo?.name || name) : name;
+
         addActivity({
             entityType:       'contact',
-            entityId:         cId,
+            entityId:         resolvedEntityId,
             type,
-            title:            fd.title || `${type} with ${name}`,
+            title:            fd.title || `${type} with ${resolvedName}`,
             description:      fd.description || '',
-            date:             fd.date || new Date().toISOString().split('T')[0],
-            time:             fd.time || '',
+            date:             fd.date || todayDate,
+            time:             fd.time || nowTime,
             priority:         fd.priority || 'Medium',
             duration:         fd.duration || '',
-            contactName:      name,
-            completed:        false,
+            contactName:      resolvedName,
+            /* Calls are COMPLETED activities (already happened).
+               Other types (Meeting, To-Do) are scheduled future items. */
+            completed:        isCall ? true : false,
+            loggedAt:         isCall ? now.toISOString() : null,
+            loggedBy:         isCall ? (currentUser?.name || currentUser?.email || 'Unknown') : null,
+            loggedByEmail:    isCall ? (currentUser?.email || '') : null,
             /* Call-specific fields */
             ...(isCall && {
-                spokeTo:          fd.spokeTo?.name  || name,
-                spokeToContactId: fd.spokeTo?.id    || cId,
+                spokeTo:          fd.spokeTo?.name   || name,
+                spokeToContactId: fd.spokeTo?.id     || cId,
                 spokeToCompany:   fd.spokeTo?.company ?? (contact?.company || ''),
+                callStatus:       fd.callStatus || 'Completed',
             }),
         });
         close();
@@ -600,15 +626,27 @@ const ContactActionBar = ({
                     />
                 </Form.Group>
 
-                {/* Date & Time */}
-                <Form.Group className="mb-3">
-                    <Form.Label className="fs-7 fw-semibold">Date &amp; Time</Form.Label>
-                    <ActivityDateTimePicker
-                        date={fd.date || ''}
-                        time={fd.time || ''}
-                        onChange={({ date, time }) => { set('date', date); set('time', time); }}
-                    />
-                </Form.Group>
+                {/* Date & Time — plain inputs so user can type any exact time */}
+                <div className="row g-2 mb-3">
+                    <div className="col-7">
+                        <Form.Label className="fs-7 fw-semibold">Date</Form.Label>
+                        <Form.Control
+                            type="date"
+                            size="sm"
+                            value={fd.date || new Date().toISOString().split('T')[0]}
+                            onChange={e => set('date', e.target.value)}
+                        />
+                    </div>
+                    <div className="col-5">
+                        <Form.Label className="fs-7 fw-semibold">Time</Form.Label>
+                        <Form.Control
+                            type="time"
+                            size="sm"
+                            value={fd.time || `${String(new Date().getHours()).padStart(2,'0')}:${String(new Date().getMinutes()).padStart(2,'0')}`}
+                            onChange={e => set('time', e.target.value)}
+                        />
+                    </div>
+                </div>
 
                 {/* Duration (free text) + Priority */}
                 <div className="row g-2 mb-3">
@@ -625,6 +663,22 @@ const ContactActionBar = ({
                         <Form.Label className="fs-7 fw-semibold">Priority</Form.Label>
                         <Form.Select size="sm" value={fd.priority || 'Low'} onChange={e => set('priority', e.target.value)}>
                             {['Low','Medium','High','Urgent'].map(p => <option key={p}>{p}</option>)}
+                        </Form.Select>
+                    </div>
+                </div>
+
+                {/* Call Status */}
+                <div className="row g-2 mb-3">
+                    <div className="col-12">
+                        <Form.Label className="fs-7 fw-semibold">Call Status</Form.Label>
+                        <Form.Select
+                            size="sm"
+                            value={fd.callStatus || 'Completed'}
+                            onChange={e => set('callStatus', e.target.value)}
+                        >
+                            {['Completed','Attempted — No Answer','Left Voicemail','Left Message','Busy','Wrong Number','Follow-up Needed','Cancelled'].map(s => (
+                                <option key={s} value={s}>{s}</option>
+                            ))}
                         </Form.Select>
                     </div>
                 </div>
@@ -673,5 +727,8 @@ const ContactActionBar = ({
     );
 };
 
-const mapStateToProps = ({ contacts }) => ({ contacts: contacts || [] });
+const mapStateToProps = ({ contacts, auth }) => ({
+    contacts:    contacts || [],
+    currentUser: auth?.currentUser || null,
+});
 export default connect(mapStateToProps, { addNote, addTask, addActivity, addHistoryEntry })(ContactActionBar);

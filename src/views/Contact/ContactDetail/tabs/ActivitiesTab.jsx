@@ -85,7 +85,15 @@ const ActivitiesTab = ({
     const [errors,         setErrors]         = useState({});
 
     const myActivities = activities
-        .filter(a => a.entityType === entityType && String(a.entityId) === String(entityId))
+        .filter(a => {
+            if (a.entityType !== entityType) return false;
+            const idMatch = String(a.entityId) === String(entityId);
+            // Fallback: also show Call activities where this contact was explicitly
+            // the person spoken to (handles activities saved before the entityId fix).
+            const spokeToMatch = a.type === 'Call' && a.spokeToContactId &&
+                String(a.spokeToContactId) === String(entityId);
+            return idMatch || spokeToMatch;
+        })
         .sort((a, b) => {
             // Sort by scheduled date desc (most recent first)
             const da = new Date(a.date || a.createdAt || 0);

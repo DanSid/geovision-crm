@@ -1,12 +1,12 @@
 import React from 'react';
 import { Badge, Button, Card, Form, Pagination, Table } from 'react-bootstrap';
 import { connect } from 'react-redux';
-import { deleteTask, toggleTask } from '../../../redux/action/Crm';
-import { priorityColor, sortTasksByDate, statusColor } from '../../../utils/taskData';
+import { deleteTask, updateTask } from '../../../redux/action/Crm';
+import { priorityColor, sortTasksByDate, statusColor, TASK_STATUSES } from '../../../utils/taskData';
 
 const formatDate = (value) => (value ? new Date(value).toLocaleString() : '-');
 
-const Body = ({ tasks = [], showInfo, onEdit, onAddTask = () => {}, toggleTask, deleteTask }) => {
+const Body = ({ tasks = [], showInfo, onEdit, onAddTask = () => {}, updateTask, deleteTask }) => {
   const ordered = sortTasksByDate(tasks);
 
   return (
@@ -44,7 +44,12 @@ const Body = ({ tasks = [], showInfo, onEdit, onAddTask = () => {}, toggleTask, 
                 <tbody>
                   {ordered.map((task) => (
                     <tr key={task.id}>
-                      <td><Form.Check checked={!!task.done} onChange={() => toggleTask(task.id)} /></td>
+                      <td>
+                        <Form.Check
+                          checked={!!task.done}
+                          onChange={() => updateTask({ ...task, done: !task.done, status: task.done ? 'To Do' : 'Completed' })}
+                        />
+                      </td>
                       <td>
                         <div className="fw-medium cursor-pointer" onClick={() => showInfo(task)}>{task.title}</div>
                         <div className="text-muted fs-7 text-truncate" style={{ maxWidth: 300 }}>{task.description || '-'}</div>
@@ -70,7 +75,20 @@ const Body = ({ tasks = [], showInfo, onEdit, onAddTask = () => {}, toggleTask, 
                         </div>
                       </td>
                       <td><Badge bg={priorityColor(task.priority)}>{task.priority}</Badge></td>
-                      <td><Badge bg={statusColor(task.status)}>{task.status}</Badge></td>
+                      <td>
+                        <Form.Select
+                          size="sm"
+                          value={task.status || 'To Do'}
+                          onChange={e => {
+                            const s = e.target.value;
+                            updateTask({ ...task, status: s, done: s === 'Completed' });
+                          }}
+                          style={{ fontSize: 11, minWidth: 120, padding: '2px 6px' }}
+                          className={`border-0 bg-${statusColor(task.status || 'To Do')}-subtle text-${statusColor(task.status || 'To Do')}`}
+                        >
+                          {TASK_STATUSES.map(s => <option key={s}>{s}</option>)}
+                        </Form.Select>
+                      </td>
                       <td>{task.category || '-'}</td>
                       <td className="text-end">
                         <div className="d-inline-flex align-items-center gap-2">
@@ -101,4 +119,4 @@ const Body = ({ tasks = [], showInfo, onEdit, onAddTask = () => {}, toggleTask, 
   );
 };
 
-export default connect(null, { toggleTask, deleteTask })(Body);
+export default connect(null, { updateTask, deleteTask })(Body);

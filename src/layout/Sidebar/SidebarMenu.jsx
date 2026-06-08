@@ -73,6 +73,12 @@ export const SidebarMenu = [
                 path: '/apps/taskboard/pipeline',
                 grp_name: 'sales',
             },
+            {
+                name: 'Task List',
+                icon: <Icons.ListCheck />,
+                path: '/apps/tasks/task-list',
+                grp_name: 'sales',
+            },
         ]
     },
 
@@ -84,7 +90,7 @@ export const SidebarMenu = [
                 id: 'dash_tasks',
                 name: 'Tasks',
                 icon: <Icons.ListDetails />,
-                path: '/apps/tasks',
+                path: '/apps/tasks/task-list',
                 childrens: [
                     {
                         name: 'Task List',

@@ -94,16 +94,23 @@ const ContactsWorkspace = ({
     updateCustomer,
     addCustomDept,
 }) => {
-    /* ── Sorted visible list ── */
-    const contacts = useMemo(
-        () => allContacts
+    /* ── Sorted, deduplicated visible list ── */
+    const contacts = useMemo(() => {
+        const seen = new Set();
+        return allContacts
             .filter(c => !c.deleted)
-            .sort((a, b) => getContactName(a).localeCompare(getContactName(b))),
-        [allContacts]
-    );
+            .filter(c => {
+                const id = String(c.id || c._id || '');
+                if (!id || seen.has(id)) return false;
+                seen.add(id);
+                return true;
+            })
+            .sort((a, b) => getContactName(a).localeCompare(getContactName(b)));
+    }, [allContacts]);
 
     /* ── State ── */
     const [selectedIndex, setSelectedIndex] = useState(0);
+    const [selectedContactId, setSelectedContactId] = useState(null);
     const [viewMode, setViewMode]           = useState('list');   // 'list' | 'detail'
     const [showAddModal, setShowAddModal]   = useState(false);
     const [form, setForm]                   = useState(EMPTY);
@@ -111,17 +118,48 @@ const ContactsWorkspace = ({
     const [editingContact, setEditingContact] = useState(null);   // for modal
     const [pendingNav, setPendingNav]       = useState(null);     // { contactId, tab }
     const [activeTab, setActiveTab]         = useState('activities');
+    const [search, setSearch]               = useState('');
 
     /* ── Inline edit state (for Detail View) ── */
     const [inlineForm, setInlineForm] = useState(null);
 
     const photoRef = useRef(null);
 
+    /* ── Search-filtered contacts (for table display AND nav arrows) ── */
+    const displayContacts = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        if (!q) return contacts;
+        return contacts.filter(c => {
+            const nm = getContactName(c).toLowerCase();
+            return nm.includes(q) ||
+                (c.company     || '').toLowerCase().includes(q) ||
+                (c.email       || '').toLowerCase().includes(q) ||
+                (c.phone       || '').toLowerCase().includes(q) ||
+                (c.designation || '').toLowerCase().includes(q);
+        });
+    }, [contacts, search]);
+
     /* ── Derived ── */
-    const clamp          = i => Math.max(0, Math.min(contacts.length - 1, i));
-    const selectedContact = contacts[clamp(selectedIndex)] ?? null;
-    const contactId       = selectedContact ? (selectedContact.id || selectedContact._id) : null;
-    const contactName     = selectedContact ? getContactName(selectedContact) : '';
+    const clamp = i => Math.max(0, Math.min(displayContacts.length - 1, i));
+
+    /* Resolve selected contact — prefer UUID-based lookup, fall back to index */
+    const selectedContact = useMemo(() => {
+        if (selectedContactId) {
+            const found = displayContacts.find(
+                c => String(c.id || c._id) === String(selectedContactId)
+            );
+            if (found) return found;
+        }
+        return displayContacts[clamp(selectedIndex)] ?? null;
+    }, [selectedContactId, selectedIndex, displayContacts]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    /* Keep selectedIndex in sync with displayContacts so arrows work */
+    const currentDisplayIndex = selectedContact
+        ? displayContacts.findIndex(c => String(c.id || c._id) === String(selectedContact.id || selectedContact._id))
+        : 0;
+
+    const contactId   = selectedContact ? (selectedContact.id || selectedContact._id) : null;
+    const contactName = selectedContact ? getContactName(selectedContact) : '';
 
     /* ── Sync inlineForm when selected contact changes ── */
     useEffect(() => {
@@ -175,7 +213,7 @@ const ContactsWorkspace = ({
                 c => String(c.id || c._id) === String(contactId)
             );
             if (idx >= 0) {
-                setSelectedIndex(idx);
+                setSelectedContactId(contacts[idx].id || contacts[idx]._id);
                 setViewMode('detail');
             }
         }
@@ -191,15 +229,14 @@ const ContactsWorkspace = ({
     }, [inlineForm, selectedContact]);
 
     /* ── Navigation ── */
-    const goFirst = () => setSelectedIndex(0);
-    const goLast  = () => setSelectedIndex(contacts.length - 1);
-    const goPrev  = () => setSelectedIndex(i => clamp(i - 1));
-    const goNext  = () => setSelectedIndex(i => clamp(i + 1));
+    const goFirst = () => { setSelectedContactId(null); setSelectedIndex(0); };
+    const goLast  = () => { setSelectedContactId(null); setSelectedIndex(displayContacts.length - 1); };
+    const goPrev  = () => { setSelectedContactId(null); setSelectedIndex(clamp(currentDisplayIndex - 1)); };
+    const goNext  = () => { setSelectedContactId(null); setSelectedIndex(clamp(currentDisplayIndex + 1)); };
 
     const handleSelect = contact => {
-        const idx = contacts.findIndex(c => (c.id || c._id) === (contact.id || contact._id));
-        if (idx >= 0) setSelectedIndex(idx);
-        setViewMode('detail'); // clicking a row in list view switches to detail
+        setSelectedContactId(contact.id || contact._id);
+        setViewMode('detail');
     };
 
     /**
@@ -208,8 +245,7 @@ const ContactsWorkspace = ({
      * on the checked contact without jumping away from the list.
      */
     const handleActivate = contact => {
-        const idx = contacts.findIndex(c => (c.id || c._id) === (contact.id || contact._id));
-        if (idx >= 0) setSelectedIndex(idx);
+        setSelectedContactId(contact.id || contact._id);
         // intentionally does NOT call setViewMode
     };
 
@@ -325,8 +361,8 @@ const ContactsWorkspace = ({
             {/* ── Top Action Bar ── */}
             <ContactActionBar
                 contact={selectedContact}
-                contactIndex={selectedIndex}
-                contactCount={contacts.length}
+                contactIndex={currentDisplayIndex}
+                contactCount={displayContacts.length}
                 onPrev={goPrev}
                 onNext={goNext}
                 onFirst={goFirst}
@@ -356,7 +392,10 @@ const ContactsWorkspace = ({
                             </div>
                         ) : (
                             <ContactListTable
-                                contacts={contacts}
+                                contacts={displayContacts}
+                                totalCount={contacts.length}
+                                search={search}
+                                onSearch={setSearch}
                                 selectedId={contactId}
                                 onSelect={handleSelect}
                                 onActivate={handleActivate}
